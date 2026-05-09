@@ -1,0 +1,5818 @@
+Error Rate Bounds and Iterative Weighted Majority Voting
+for Crowdsourcing
+
+arXiv:1411.4086v1 [stat.ML] 15 Nov 2014
+
+Hongwei Li
+
+hwli@stat.berkeley.edu
+
+Department of Statistics
+University of California
+Berkeley, CA 94720-1776, USA
+
+Bin Yu
+
+binyu@stat.berkeley.edu
+
+Department of Statistics & EECS
+University of California
+Berkeley, CA 94720-1776, USA
+
+Abstract
+Crowdsourcing has become an effective and popular tool for human-powered computation to label large datasets. Since the workers can be unreliable, it is common in crowdsourcing to assign multiple workers to one task, and to aggregate the labels in order to
+obtain results of high quality. In this paper, we provide finite-sample exponential bounds
+on the error rate (in probability and in expectation) of general aggregation rules under the
+Dawid-Skene crowdsourcing model. The bounds are derived for multi-class labeling, and
+can be used to analyze many aggregation methods, including majority voting, weighted
+majority voting and the oracle Maximum A Posteriori (MAP) rule. We show that the
+oracle MAP rule approximately optimizes our upper bound on the mean error rate of
+weighted majority voting in certain setting. We propose an iterative weighted majority
+voting (IWMV) method that optimizes the error rate bound and approximates the oracle
+MAP rule. Its one step version has a provable theoretical guarantee on the error rate. The
+IWMV method is intuitive and computationally simple. Experimental results on simulated
+and real data show that IWMV performs at least on par with the state-of-the-art methods,
+and it has a much lower computational cost (around one hundred times faster) than the
+state-of-the-art methods.
+Keywords: Crowdsourcing, Error rate bound, Mean error rate, Expectation-Maximization,
+Weighted majority voting
+
+1. Introduction
+There are many tasks which can be easily carried out by people but that tend to be hard
+for computers, e.g., image annotation, visual design and video event classification. When
+these tasks are extensive, outsourcing them to experts or well-trained people may be too
+expensive. Crowdsourcing has recently emerged as a powerful alternative. It outsources
+tasks to a distributed group of people (called workers) who might be inexperienced in these
+tasks. However, if we can appropriately aggregate the outputs from a crowd, the yielded
+results could be as good as the ones by experts (Smyth et al., 1995; Snow et al., 2008;
+1
+
+Whitehill et al., 2009; Raykar et al., 2010; Welinder et al., 2010; Yan et al., 2010; Liu et al.,
+2012; Zhou et al., 2012).
+The flaws of crowdsourcing are apparent. Each worker is paid purely based on how
+many tasks that he/she has completed (for example, one cent for labeling one image). No
+ground truth is available to evaluate how well he/she has performed on the tasks. So some
+workers may randomly submit answers independent of the questions when the tasks assigned
+to them are beyond their expertise. Moreover, workers are usually not persistent. Some
+workers may complete many tasks, while the others may finish only very few tasks.
+In spite of these drawbacks, is it still possible to get reliable answers in a crowdsourcing
+system? The answer is yes. In fact, majority voting (MV) has been able to generate fairly
+reasonable results (Snow et al., 2008). However, majority voting treats each worker’s result
+as equal in quality. It does not distinguish a spammer from a diligent worker. Thus majority
+voting can be significantly improved upon (Karger et al., 2011).
+The first improvement over majority voting dates back at least to (Dawid and Skene,
+1979). They assumed that each worker is associated with an unknown confusion matrix,
+whose rows are discrete conditional distributions of input from workers given ground truth.
+Each off-diagonal element represents misclassification rate from one class to the other, while
+the diagonal elements represent the accuracy in each class. Based on the observed labels
+by the workers, the maximum likelihood principle is applied to jointly estimate unobserved
+true labels and worker confusion matrices. Although the likelihood function is non-convex,
+a local optimum can be obtained by using the Expectation-Maximization (EM) algorithm,
+which can be initialized by majority voting.
+Dawid and Skene’s model (Dawid and Skene, 1979) can be extended by assuming true
+labels are generated from a logistic model (Raykar et al., 2010), or putting a prior over
+worker confusion matrices (Liu et al., 2012), or taking the task difficulties into account
+(Bachrach et al., 2012). One may simplify the assumption made by Dawid and Skene
+(1979) to consider a confusion matrix with only a single parameter (Karger et al., 2011; Liu
+et al., 2012), which we call the Homogenous Dawid-Skene model (Section 2).
+Recently, significant progress has been made for inferring the true labels of the items.
+Raykar et al. (2010) presented a maximum likelihood estimator (via EM algorithm) that
+infers worker reliabilities and true labels. Welinder et al. (2010) endowed each item (i.e.,
+image data in their work) with features, which could represent concepts or topics, and workers have different areas of expertise of matching these topics. Liu et al. (2012) transformed
+label inference in crowdsourcing into a standard inference problem in graphical models, and
+applied approximate variational methods. Zhou et al. (2012) inferred the true labels by
+applying a minimax entropy principle to the distribution which jointly model the workers,
+items and labels. Some work also considers the problem of adaptively assigning the tasks
+to workers for budget efficiency (Ho et al., 2013; Chen et al., 2013).
+All the previous work we mentioned above focused on applying or extending DawidSkene model, and inferring the true labels based on that. However, to understand the
+behavior and consequences of the crowdsourcing system, it is of great intension to investigate
+the error rate of various aggregation rules. To theoretically analyze specific algorithm,
+Karger et al. (2011) provided asymptotic error bounds for their iterative algorithm and
+also majority voting. It seems difficult to generalize their results to other aggregation rules
+in crowdsourcing or apply to finite sample scenario. Very recently, Gao and Zhou (2014)
+2
+
+studied the minimax convergence rate of the global maximizer of a lower bound of the
+marginal-likelihood function under a simplified Dawid-Skene model (i.e., one coin model
+in binary labeling). Their results are on clustering error rate, which is different from the
+ordinary error rate, i.e., proportion of mistakes in final labeling. They focused on the
+mathematical properties of the global optimizer of a specific function for sufficiently large
+number of workers and items, and not on the behavior of rules/algorithms which find the
+optimizer or aggregate the results.
+In this paper, we focus on providing finite sample bounds on the error rate of some
+general aggregation rules under crowdsourcing models of which the effectiveness on real
+data has been evaluated in (Dawid and Skene, 1979; Raykar et al., 2010; Liu et al., 2012;
+Zhou et al., 2012), and motivate efficient algorithms. Our main contributions are as follows:
+1. We derived error rate bounds (in probability and in expectation) of a general type of
+aggregation rules with any finite number of workers and items under the Dawid-Skene
+model (with the Class-Conditional Dawid-Skene model and Homogenous Dawid-Skene
+model (Section 2) as special cases).
+2. By applying the general error rate bounds to some special cases such as weighted
+majority voting and majority voting under specific models, we gain insights and intuitions. These lead to the oracle bound-optimal rule for designing optimal weighted
+majority voting, and also the consistency property of majority voting.
+3. We show that the oracle Maximum A Posteriori (MAP) rule approximately optimizes
+the upper bound on the mean error rate of weighted majority voting. The EM algorithm approximates the oracle MAP rule, thus the error rate bounds can help us to
+understand the EM algorithm in the context of crowdsourcing.
+4. We proposed a data-driven iterative weighted majority voting (IWMV) algorithm
+with performance guarantee on its one-step version (Section 4.2). It is intuitive, easy
+to implement and performs as well as the state-of-the-art methods on simulated and
+real data but with much lower computational cost.
+To the best of our knowledge, this is the first work which focuses on the finite sample
+error rate analysis on general aggregation rules under the practical Dawid-Skene model for
+crowdsourcing. The results we obtained can be used for analyzing error rate and sample
+complexity of algorithms. It is also worth mentioning that most of the previous work
+done only focused on binary crowdsourcing labeling, while our results are based on multiclass labeling, which naturally apply to the binary case. Meanwhile, we did not make any
+assumptions on the number of workers and items in the crowdsourcing, thus the results can
+be directly applied to the setting of real crowdsourcing data.
+
+2. Background and formulation
+As an example of crowdsourcing, we assume that a set of workers are assigned to perform
+labeling tasks, such as judging whether an image of an animal is that of a cat, a dog or a
+sheep, or evaluating if a video event is abnormal or not.
+3
+
+Throughout this paper, we assume there are M workers and N items for a labeling
+task with L label classes. We denote the set of workers [M ] = {1, 2, · · · , M }, the set of
+items [N ] = {1, 2, · · · , N }, and the set of labels [L] = {1, 2, · · · , L} (called label set). The
+extended label set is defined as [L] = [L] ∪ {0} = {0, 1, 2, · · · , L}, where 0 represents the
+label is missing. However, in the case of L = 2, we use the common convention of label set
+as {−1, +1} and extended label set as {0, −1, +1}.
+In what follows, we use yj as the true label for the j-th item, and ŷj as the predicted
+label for the j-th item by an algorithm.1 Let πk = P(yj = k) denotes the prevalence of label
+“k” in the true labels of the items for any j ∈ [N ] and k ∈ [L].
+M ×N
+
+The observed data matrix is denoted by Z ∈ [L]
+, where Zij is the label given by
+the i-th worker to the j-th item, and it will be 0 if the corresponding label is missing (the
+ith worker did not label the jth item). We introduce the indicator matrix T = (Tij )M ×N ,
+where Tij = 1 indicates that entry (i, j) is observed, and Tij = 0 indicates entry (i, j) is
+unobserved. Note that T and Z are observed together.
+
+Workers
+
+Items
+
+Data matrix Z :
+
+Unlabeled
+
+Labeled
+
+1
+
+2
+
+3
+
+Figure 1: Illustration of the input data matrix. Entry (i, j) is the label of j-th item given
+by i-th worker. The set of labels is [L] = {1, 2, 3}.
+
+The process of matching workers with tasks (i.e., labeling items) can be modeled by
+a probability matrix Q = (qij )M ×N , where qij = P(Tij = 1) is the probability that the
+jth item was assigned to the ith worker (i.e., gets labeled). We call Q as assignment
+probability matrix. Unlike the fixed assignment configuration in (Karger et al., 2011), the
+assignment probability matrix is more flexible, and it does not require each worker label the
+same number of items, nor each item gets labeled by same number of workers. Hence, the
+assignment probability matrix covers the most general form of assigning items to workers,
+and there are special cases commonly adopted in literature, such as a worker has the same
+chance to label all items (Karger et al., 2011; Liu et al., 2012). More specifically, when qij =
+qi ∈ (0, 1], ∀i ∈ [M ], j ∈ [N ], we call it the assignment probability vector ~q = (q1 , · · · , qM ).
+If qij = q ∈ (0, 1], ∀i ∈ [M ], j ∈ [N ], then we call it constant assignment probability q. The
+1. In this paper, any parameter with a hat ˆ is an estimate for this parameter.
+
+4
+
+three assignment configurations above are referred to as the task assignment 2 is based on
+probability matrix Q, probability vector ~q and constant probability q , respectively.
+Generally, we use π, p, q as probabilities, and they might have indices according to the
+context. We denote A and C as constants which depend on other given variables, and
+a as either a general constant or a vector depending on context. η denotes likelihood
+probabilities in the context. Θ denotes a set of parameters.  and δ are constants in
+(0, 1), where  is used for bounding the error rate, and δ is used for denoting a positive
+probability. He () denotes the natural entropy of Bernoulli random variable with parameter
+, i.e., He () = − ln  − (1 − ) ln(1 − ). Operators ∧ and ∨ denote the min operator and
+the max operator between two numbers, respectively. Meanwhile, throughout the paper,
+we will locally define each notation in the context before using them.
+2.1 Dawid-Skene models
+We discuss three models covering all the cases that are widely used for modeling the quality
+of the workers (Dawid and Skene, 1979; Raykar et al., 2010; Karger et al., 2011; Liu et al.,
+2012; Zhou et al., 2012). The first one, which is also the most general one, was originally
+proposed by Dawid and Skene (1979):
+General Dawid-Skene
+In this model, the reliability of worker i is modeled as
+ model.
+
+(i)
+(i)
+a confusion matrix P = pkl
+∈ [0, 1]L×L , which is in a matrix form and represents
+L×L
+
+a conditional probability table such that
+(i) .
+pkl = P (Zij = l|yj = k, Tij = 1) ,
+
+∀k, l ∈ [L], ∀i ∈ [M ].
+
+(1)
+
+(i)
+
+Note that pkk denotes the accuracy of worker i on labeling an item with true label k
+(i)
+correctly, and pkl , k 6= l represents the error probability of labeling an item with true label
+k as l mistakenly. The number of free parameters of modeling the reliability of a worker
+are L(L − 1) under the General Dawid-Skene model.
+Since the General Dawid-Skene model has L(L − 1) degree of freedom to model each
+worker, it is flexible, but often leads to overfitting on small datasets. As a further regularization of the worker models, we consider another two models which are special cases of
+General Dawid-Skene model via imposing constraints on the worker confusion matrices.
+• Class-Conditional Dawid-Skene model. In this model, the error probabilities of labeling an item with true label k as label l mistakenly for each worker are the same
+2. The term task assignment seems to imply that workers are passive of labeling items — they will surely
+label an item whenever they are assigned to. This might not match the reality in the crowdsourcing
+platform. When a task owner distributed tasks to the crowd, it is likely that most of the workers will
+label a set of items and they can stop whenever they want to (Snow et al., 2008), unless they are required
+(by the owner) to complete a specific set of tasks for getting paid. Thus the process of matching tasks
+with workers might be determined by either workers (subjectively) or task owners (by enforcement),
+which depends on how the owners design and distribute tasks. If the workers have choice to select which
+item to label, it might be more proper to call the task-worker matching as task selection, instead of task
+assignment. However, both of the cases can be modeled by the probability matrix Q (or probability
+vector ~
+q , or constant probability q). In what follows, we use the term task assignment to represent the
+task-worker matching without introducing ambiguity.
+
+5
+
+Figure 2: The graphical model of the General Dawid-Skene model. Note that P (i) is the
+confusion matrix of worker i and if we change P (i) to wi , the graph will become
+the graphical model for the Homogenous Dawid-Skene model.
+
+across different l. Formally, we have
+
+p(i) = P (Zij = k|yj = k, Tij = 1) ,
+kk
+(i)
+p(i) = 1−pkk ,
+kl
+
+L−1
+
+∀k ∈ [L], ∀i ∈ [M ],
+
+(2)
+
+∀k, l ∈ [L], l 6= k, ∀i ∈ [M ].
+
+This model simplifies the error probabilities of a worker to be the same given the true
+label of an item. Thus, the off-diagonal elements of each row of the confusion matrix
+P (i) will be the same. The number of free parameters to model the reliability of each
+worker under the Class-Conditional Dawid-Skene model is L.
+• Homogenous Dawid-Skene model. Each worker is assumed to have the same accuracy
+on each class of items, and have the same error probabilities as well. Formally, worker
+i labels an item correctly with a fixed probability wi and mistakenly with another
+i
+fixed probability 1−w
+L−1 , i.e.,
+( (i)
+pkk = wi ,
+(i)
+i
+pkl = 1−w
+L−1 ,
+
+∀k ∈ [L], ∀i ∈ [M ],
+∀k, l ∈ [L], k 6= l, ∀i ∈ [M ].
+
+(3)
+
+In this case, the worker labels an item with the same accuracy, independent of which
+label this item actually is. The number of parameters of modeling the reliability of
+each worker is 1 under the Homogenous Dawid-Skene model.
+o
+n
+M
+P (i) i=1 , Q, π .
+Generally, the parameter set under all the three models can be denoted as Θ =
+Specifically,
+the parameter
+set of the Homogenous Dawid-Skene model can be denoted as
+n
+o
+M
+Θ = {wi }i=1 , Q, π .
+It is worth mentioning that when L = 2, the Class-Conditional Dawid-Skene model
+and the General Dawid-Skene model are the same, which are referred to as the two-coin
+model, and the Homogenous Dawid-Skene model is referred to as the one-coin model in
+the literature (Raykar et al., 2010; Liu et al., 2012). In signal processing, the Homogenous
+Dawid-Skene model is equivalent to the random classification noise model (Angluin and
+6
+
+True label
+
+Predicted label
+0.7
+
+0.2
+
+0.1
+
+0.7
+
+0.15
+
+0.15
+
+0.8
+
+0.1
+
+0.1
+
+0.03
+
+0.9
+
+0.07
+
+0.05
+
+0.9
+
+0.05
+
+0.1
+
+0.8
+
+0.1
+
+0.05
+
+0.15
+
+0.8
+
+0.1
+
+0.1
+
+0.8
+
+0.1
+
+0.1
+
+0.8
+
+(a)
+
+(b)
+
+(c)
+
+Figure 3: Toy examples of confusion matrices of different worker reliability models. We
+assume L = 3 thus confusion matrices ∈ [0, 1]3×3 . (a) General Dawid-Skene
+model. (b) Class-Conditional Dawid-Skene model. (c) Homogenous Dawid-Skene
+model. Vertical axis is actual classes, and horizontal axis is predicted classes.
+Different color corresponds to different conditional probability, and the diagonal
+elements are the accuracy of labeling the corresponding class of items correctly.
+
+Laird, 1988), and the Class-Conditional Dawid-Skene model is also referred to as the classconditional noise model (Natarajan et al., 2013). We do not adopt the original term because
+the error comes from the limitations of workers’ ability to label items correctly, not from
+noise which is in the context of signal processing.
+Binary labeling is the special case (L = 2), and it is the major focus of the previous
+research in crowdsourcing (Raykar et al., 2010; Karger et al., 2011; Liu et al., 2012). As
+a convention, we assume the set of labels is {±1} instead of {1, 2} when L = 2. For
+notation convenience, we defined the worker confusion matrix in a different way as follows:
+for i = 1, 2, · · · , M
+( (i)
+p+ = P(Zij = 1|yj = 1, Tij = 1),
+(4)
+(i)
+p− = P(Zij = −1|yj = −1, Tij = 1).
+n
+
+o
+(i) (i) M
+Then the parameter set will be Θ =
+p+ , p−
+, Q, π under this model. When we
+i=1
+(i)
+we will use p+
+
+(i)
+
+present the result of binary labeling,
+and p− without introducing any
+ambiguity.
+Under the models above, the posterior probability of the true label of item j to be k is
+defined as:
+(j)
+
+ρk = P(yj = k|Z, T, Θ),
+
+∀j ∈ [N ].
+
+(5)
+
+For binary labeling, the posterior probability of the true label of item j to be k is defined
+as:
+(j)
+
+ρ+ = P(yj = 1|Z, T, Θ),
+
+∀j ∈ [N ].
+
+(6)
+
+2.2 Aggregation rules
+After collecting the crowdsourced labels, the task owner could use an arbitrary rule to
+aggregate the multiple noisy labels of an item to a “refined” label for that item. The
+7
+
+quality of final predicted labels depends not only on the input from the workers but also on
+the aggregation rule. It is hence of great importance to design a good aggregation rule.
+A natural aggregation rule is majority voting (Snow et al., 2008; Karger et al., 2011).
+For multiple labeling, majority voting can be written formally as
+ŷj = argmax
+k∈[L]
+
+M
+X
+
+I (Zij = k) ,
+
+(7)
+
+i=1
+
+which gives the jth item the majority label among all workers.
+Since workers have different reliabilities, it is inefficient to treat the labels from different workers with the same weight as in majority voting (Karger et al., 2011). A natural
+extension of majority voting is weighted majority voting (WMV), which weighs the labels
+differently. Formally, weighted majority voting rule can be written as
+ŷj = argmax
+k∈[L]
+
+M
+X
+
+νi I (Zij = k) ,
+
+(8)
+
+i=1
+
+where νi ∈ R is the weight associated with the ith worker.
+The idea behind weighted majority voting can be generalized in this way: given an item
+and the labels input from workers, the item can be potentially predicted to be any label
+class in [L]. Suppose each class has a score which is computed based on the worker inputs,
+and we call it the aggregated score for potential class 3 , then the aggregated label can be
+chosen as the class that obtains the highest score.
+Based on the ideas above, we consider a general form of aggregation rule which is
+based on maximizing aggregated scores. The aggregated score of each label class can be
+decomposed into the sum of bounded prediction functions associated with workers, plus
+a shift constant. We refer this type of aggregation rule to decomposable aggregation rule,
+which has the form
+M
+
+(j)
+
+ŷj = argmax sk
+k∈[L]
+
+X
+(j) .
+and sk =
+fi (k, Zij ) + ak ,
+
+(9)
+
+i=1
+
+(j)
+
+where sk is the aggregated score for potential class k on item j, ak ∈ R and fi : [L]×[L] → R
+∀i ∈ M is bounded, i.e., |fi (k, h)| < ∞, ∀k ∈ [L], h ∈ [L]. Given k and h, fi (k, h)
+is a constant. Intuitively, fi (k, h) is the score gained for the kth potential label class
+when the ith worker labels an item with label h. It is reasonable to assume that Zij = 0
+contributes no information to predict the true label of jth item, thus, we further assume that
+fi (k, 0) = constant, ∀i ∈ [M ], k ∈ [L]. Without ambiguity, we will refer to {f1 , f2 , · · · , fM }
+as score functions in what follows. Note that score functions are usually designed by the
+task owners when they aggregate the noisy inputs into final predicted results.
+For illustration, majority voting is a special case of decomposable aggregation rule with
+fi (k, Zij ) = 1 if Zij = k, and 0 if Zij 6= k. For weighted majority voting, fi (k, Zij ) = νi if
+Zij = k, and 0 otherwise. Later, we will see more aggregation rules which can be expressed
+or approximated in this form (Section 4.2).
+3. Since we do not know the true label of an item, we use the term potential class based on the fact that
+all the label class can potentially be the true label of this item.
+
+8
+
+2.3 Performance metric
+Given an estimation or an aggregation rule, suppose that its predicted label for item j is
+ŷj , then our objective is to minimize the error rate
+N
+
+ER =
+
+1 X
+I (ŷj 6= yj ) .
+N
+
+(10)
+
+j=1
+
+Since the error rate is random, we are also interested in its expected value (i.e., the mean
+error rate). Formally, the mean error rate is:
+N
+
+E[ER] =
+
+1 X
+P(ŷj 6= yj ).
+N
+
+(11)
+
+j=1
+
+The rest of the paper is organized as follows. In Section 3, we present finite-sample
+bounds on the error rate of the decomposable aggregation rule in probability and in expectation under the General Dawid-Skene model. Section 4 contains the error rate bounds of
+some special cases, which the crowdsourcing community is widely concerned with. In Section 5, we propose an iterative weighted majority voting (IWMV) algorithm based on the
+analysis of the optimization of the error rate bounds, and provide performance guarantee for
+the one step verson of IWMV algorithm. Experimental results on simulated and real-world
+dataset are presented in section 6. Note that the proofs are deferred to the supplementary
+materials.
+
+3. Error rate bounds
+In this section, finite sample bounds are provided for error rates (in high probability and in
+expectation) of the decomposable aggregation rule under the Dawid-Skene model.
+Our main results will be focused on the setting which is as general as possible. We
+define the general setting as follows:
+• Worker modeling. We focus on the General Dawid-Skene model, and then the results
+can be specialized for the Class-Conditional Dawid-Skene model and the Homogenous
+Dawid-Skene model straightforwardly.
+• Task assignment. We consider the data matrix that is observed based on assignment
+probability matrix Q = (qij )M ×N ,where qij = P(Tij = 1). The results can be easily
+simplified to the scenarios where task assignment is based on probability vector ~q or
+constant probability q according to the practical assignment process.
+• Aggregation rule. Our main results will be presented based on the decomposable
+aggregation rule (9).
+3.1 Some quantities of interest
+One important question we want to address is that how the error rate is bounded with high
+probability, and what quantities have impact on the bounds. Before deriving the error rate
+9
+
+bound, we introduce some quantities of interest under the general setting in this section.
+We shall bear in mind that all the quantities defined here serve the purpose of defining two
+measures t1 and t2 , which play a central role in bounding the error rate.
+The first quantity Γ is associated with the score functions {f1 , f2 , · · · , fM }:
+v
+uM 
+2
+X
+. u
+t
+Γ=
+max |fi (k, h) − fi (l, h)| .
+(12)
+i=1
+
+k,l,h∈[L],k6=l
+
+It measures the overall variation of the fi ’s on their first argument (i.e., when the potential label class changes).
+an example, fi (k, h) =
+qP Take weigthed majority voting (8) as q
+√
+PM
+M
+2
+M . Note
+νi I (h = k), then Γ =
+i=1 νi = ||ν||2 . For majority voting, Γ =
+i=1 1 =
+that Γ is invariant to a translation of score functions, and is linear to scale of score functions.
+That is to say, if we design new score functions as fi0 = mfi + b for constant m and b, and
+for all i ∈ [M ], then the corresponding quantity Γ0 = mΓ. Later on, we will see that it plays
+a role in normalization.
+(j)
+Another quantity Λkl is defined as the expected gap of the aggregated scores between
+two potential label classes k and l, when the true label is k. Formally,
+M X
+L
+h
+i X
+(j) .
+(j)
+(j)
+(i)
+Λkl = E sk − sl |yj = k =
+qij (fi (k, h) − fi (l, h)) pkh + (ak − al ) .
+
+(13)
+
+i=1 h=1
+
+The larger this quantity is, the easier the aggregation rule identifies the true label as k
+(j)
+instead of l (i.e., correctly predicted the label). Like Γ, Λkl is also invariant to translation
+of score functions, and linear to scale of score functions. Take weighted majority voting (8)
+for illustration, the gap
+of aggregated scores
+the Homogenous Dawid-Skene model
+ under
+PM PL 
+(j)
+1−wi
+1 PM
+is Λkl = i=1 h=1 qij νi wi − qij νi L−1 = L−1 i=1 qij νi (Lwi − 1), because fi (k, h) =
+(i)
+
+i
+νi I (h = k) and pkh = wi if h = k, otherwise 1−w
+L−1 .
+The following two quantities serve as the lower bound and the upper bound of the
+(j)
+normalized gap of aggregated scores for the jth item (i.e., the ratio of Λkl and Γ).
+
+.
+τj,min =
+
+(j)
+
+Λkl
+min
+k,l∈[L],k6=l Γ
+
+and
+
+.
+τj,max =
+
+(j)
+
+Λkl
+max
+,
+k,l∈[L],k6=l Γ
+
+(14)
+
+Both τj,min and τj,max are invariant to translation and scale of the score functions.
+Now, we introduce the two most important quantities of interest — t1 and t2 , which
+are respectively the lower bound and the upper bound of the normalized gap of aggregated
+scores across all items. In our main results, t1 is used to provide a sufficient condition
+for an upper bound on the error rate of crowdsourced labeling under the general setting.
+Meanwhile, t2 is used to provide a sufficient condition for a lower bound of the error rate.
+.
+.
+t1 = min τj,min
+and
+t2 = max τj,max ,
+(15)
+j∈[N ]
+
+j∈[N ]
+
+Both t1 and t2 are invariant to translation and scale of the score functions {f1 , f2 , · · · , fM }.
+t1 and t2 are related to how good a group of workers are, how the tasks are assigned and
+how well the aggregation rule is with respect to this type of labeling tasks.
+10
+
+Besides the quantities of interest above, we further introduce two notations which can
+capture the fluctuation of the score functions and the gap of aggregated scores. These two
+quantities will be used to bound the mean error rate of crowdsourced labeling.
+A quantity c measures the maximum change amongst all the score functions when the
+potential label class changes from one label to another, and it is defined as
+c =
+
+1
+·
+max
+|fi (k, h) − fi (l, h)|.
+Γ i∈[M ],k,l,h∈[L],k6=l
+
+(16)
+
+|ν |
+
+max
+
+i∈[M ] i
+∞
+For weighted majority voting (8), c =
+= kνk
+||ν||2
+||ν||2 . And for majority voting (7),
+c = √1M . Another quantity σ 2 relate to the variation of the gap of aggregated scores, and
+
+M
+
+σ2 =
+
+L
+
+XX
+1
+(i)
+·
+max
+qij (fi (k, h) − fi (l, h))2 pkh .
+Γ2 j∈[N ],k,l∈[L],k6=l
+
+(17)
+
+i=1 h=1
+
+Note that 0 < c ≤ 1, and 0 < σ 2 ≤ maxi∈[M ],j∈[N ] qij . Both c and σ 2 are translation
+and scale invariant of the score functions {f1 , f2 , · · · , fM }.
+In the next section, with t1 and t2 , we will derive the bounds on the error rate of
+crowdsourced labeling with high probability, and together with c and σ 2 , we will derive the
+bounds on the mean error rate under the general setting.
+3.2 Main results
+In this section, we start with a main theorem to provide finite-sample error rate bounds for
+decomposable aggregation rules under the General Dawid-Skene model (1).
+To lighten the notation, we define two functions as follows:
+x2
+
+φ(x) = e− 2
+
+x ∈ R,
+x
+1−x
+D(x||y) = x ln + (1 − x) ln
+y
+1−y
+
+(18)
+∀x, y ∈ (0, 1).
+
+(19)
+
+φ(·) is the unnormalized standard Gaussian density function. D(x||y) is the Kullback-Leibler
+divergence of two Bernoulli distributions with parameters x and y respectively.
+The following theorem provides sufficient conditions and the corresponding high probability bounds on the error rate under the general setting as described in Section 3.
+Theorem 1 (Bounding error rate with high probability) Under the General DawidSkene model as in (1), with the prediction function for each item as in (9), and suppose
+the task assignment is based on probability matrix Q = (qij )M ×N where qij is the probability
+that the worker i labels item j.
+For ∀ ∈ (0, 1),
+q with notations defined from (12) to (19), we have:
+(1) If
+
+t1 ≥
+
+2 ln L−1
+ ,
+
+then
+
+N
+
+1 X
+I (ŷj 6= yj ) ≤  with probability at least 1 − e−N D(||(L−1)φ(t1 )) .
+N
+j=1
+
+11
+
+(20)
+
+(2) If
+
+q
+1
+t2 ≤ − 2 ln 1−
+,
+1
+N
+
+N
+X
+
+then
+
+I (ŷj 6= yj ) ≥  with probability at least 1 − e−N D(||1−φ(t2 )) .
+
+(21)
+
+j=1
+
+Remark: The high probability bounds on error rate require conditions on t1 and t2 ,
+which are related to the normalized gap of aggregated scores (Section 3.1). Basically, if the
+scores of predicting an item as its true label (predicted correctly) are larger than the scores
+of predicting as a wrong label, then it is more likely that the error rate will be small, thus
+it is bounded from above with high probability. The interpretation of the lower bound and
+its condition is similar to the upper bound.
+To ensure the probability of bounding the error rate to be at least 1 − δ, we have to
+solve the equation D(||(L − 1)φ(t1 )) = N1 ln 1δ , which cannot be solved analytically. Thus,
+we need to figure out the minimum t1 for bounding the error rate with probability at least
+1 − δ. The following theorem serves this purpose by slightly relaxing the conditions on t1
+and t2 in Theorem 1.
+Before presenting the next theorem, we define a notation C , which depends on parameters , δ ∈ (0, 1), for lightening notations in the theorem.
+ 
+
+1
+1
+1
+C(, δ) = 1 + exp
+He () +
+ln
+,
+(22)
+
+N
+δ
+where He () = − ln  − (1 − ) ln(1 − ), which is the natural entropy of a Bernoulli random
+variable with parameter .
+Theorem 2 With
+1, for ∀, δ ∈ (0, 1), we have:
+p the same notation as in Theorem
+P
+(1) if t1 ≥ 2 ln [(L − 1)C(, δ)], then N1 N
+I
+(ŷ
+j 6= yj ) ≤  with probability at least
+j=1
+1 − δ,
+p
+P
+(2) if t2 ≤ − 2 ln C(1 − , δ), then N1 N
+j=1 I (ŷj 6= yj ) ≥  with probability at least
+1 − δ.
+Remark: For any scenarios that can be formulated into the general setting as in 3,
+with t1 and t2 computed as in Section 3.1, both Theorem 1 and Theorem 2 can be applied.
+Therefore, in the rest of the paper, for any special case (Section 4) of the general setting ,
+we will only present one of Theorem 1 and Theorem 2, and omit the other for clarity.
+In practice, the mean error rate might be a better measure of performance because of
+its non-random nature. The method of evaluating the accuracy of a certain algorithm is
+often conducted by taking an empirical average of its performance in each trial, which is a
+consistent estimator of the mean error rate. Thus it will be of general interest to bound the
+mean error rate.
+For the next theorem, we present the mean error rate bound under the general setting
+used in Theorem 1.
+Theorem 3 (Bounding the mean error rate.) Under the same setting as in Theorem
+1, with c and σ 2 defined as in (16) and (17) respectively,
+n
+ 2
+
+o
+P
+t1
+t21
+(1) if t1 ≥ 0, then N1 N
+,
+j=1 P (ŷj 6= yj ) ≤ (L−1)·min exp − 2 , exp − 2(σ 2 +ct1 /3)
+n
+ 2
+
+o
+2
+P
+t
+t
+2
+2
+(2) if t2 ≤ 0, then N1 N
+.
+j=1 P (ŷj 6= yj ) ≥ 1 − min exp − 2 , exp − 2(σ 2 −ct2 /3)
+12
+
+Remark: The results above are composed of two exponential bounds, and neither is
+generally dominant over the other. Thus each component inside the min operator can be
+served as an individual bound for the mean error rate. Take the upper bound in (1) as an
+example, when t1 is small (recall that both σ 2 and c are bounded above by 1), the second
+component will be tighter than the first one. Thus the error rate bound behaves like e−t1 .
+2
+Otherwise, the first component will be tighter, and the mean error rate behaves like e−t1 .
+All the proofs of the results in this section are deferred to Appendix A. In the following
+section, we demonstrate how the main results here can be applied to various settings of
+labeling by crowdsourcing, and provide theoretical bounds for the error rate correspondingly.
+
+4. Apply error rate bounds to some typical scenarios
+In this section, we apply the general results in Section 3 to some common settings such
+as binary labeling, and aggregation rules such as majority voting and weighted majority
+voting. Specifically, we consider the following scenarios:
+• Worker modeling: Recall that the General Dawid-Skene model is the same as the
+Class-Conditional Dawid-Skene model when L = 2. We will cover the binary case
+with a certain aggregation rule under the General Dawid-Skene model. For L > 2, we
+focus on multiclass labeling under the Homogenous Dawid-Skene model.
+• Task assignment: We consider the scenario that the task assignment is based on
+probability vector ~q = (q1 , q2 , · · · , qM ) or a constant probability q.
+• Aggregation rule: We focus on weighted majority voting (WMV) rule and majority
+voting (MV) since they are intuitive and of common interest. In the case of binary
+labeling, we consider a general hyperplane rule. Later, we present results for Maximum
+A Posteriori rule.
+4.1 Error rate bounds for hyperplane rule, WMV and MV
+It turns out that in practice, many prediction methods for binary labeling (yj ∈ {±1})
+can be formulated as a sign function of a hyperplane, such as majority voting, weighted
+majority voting and the oracle MAP rule (Section 4.2). In this section, we are going to
+apply our results in Section 3 to discuss the error rate of the aggregation rule, whose decision
+boundary is a hyperplane in a high dimensional space that the label vector of each item
+(i.e., all the labels from the workers for this item) lies in. Formally, the aggregation rule is
+ŷj = sign
+
+M
+X
+
+!
+νi Zij + a
+
+(23)
+
+i=1
+
+This is called the general hyperplane rule with unnormalized weights ν = (ν1 , · · · , νM ) and
+shift constant a. For binary labeling, majority voting is a special case with νi = 1, ∀i ∈ [M ]
+and a = 0.
+Theorem 1 and Theorem 3 can be directly applied to derive the error rate bounds of
+general hyperplane rule in the following corollary.
+13
+
+When task assignment is based on probability vector ~q, the corresponding quantities of
+interest for the hyperplane rule (as in Section 3.1) are defined as follows:
+
+1
+t1 =
+||ν||2
+
+"
+
+1
+t2 =
+||ν||2
+
+"
+
+c=
+
+||ν||∞
+||ν||2
+
+M
+X
+i=1
+M
+X
+
+!
+(i)
+qi νi (2p+ − 1) + a
+
+∧
+
+!
+(i)
+qi νi (2p+ − 1) + a
+
+∨
+
+i=1
+
+and σ 2 =
+
+M
+X
+i=1
+M
+X
+
+!#
+(i)
+qi νi (2p− − 1) − a
+
+(24)
+!#
+
+(i)
+qi νi (2p− − 1) − a
+
+(25)
+
+i=1
+M
+X
+
+1
+qi νi2 ,
+||ν||22 i=1
+
+(26)
+
+.
+where ∧ and ∨ are min and max operators respectively, ||ν||∞ = maxi∈[M ] |νi |, and functions
+φ(x) and D(x||y) are defined in (18) and (19).
+Corollary 4 (Hyperplane rule in binary labeling) Consider binary labeling under the Gen(i)
+(i)
+eral Dawid-Skene model, i.e., yj ∈ {±1}, p+ and p− are defined as in (4). Suppose the
+task assignment is based on probability vector ~q = (q1 , q2 , · · · , qM ) where qi is the probability
+that worker i labels an item, aggregation rule is general hyperplane rule as in (23), and the
+quantities of interest are defined in (24)-(26), for n
+∀ ∈ (0,
+ 1):
+o
+
+
+t2
+t21
+1 PN
+(1) If t1 ≥ 0, then N j=1 P (ŷj 6= yj ) ≤ min exp − 21 , exp − 2(σ2 +ct
+.
+1 /3)
+q
+
+ P
+Furthermore, if t1 ≥ 2 ln 1 , then P N1 N
+≥ 1−e−N D(||φ(t1 )) .
+j=1 I (ŷj 6= yj ) ≤ 
+n
+
+
+
+o
+P
+t22
+t22
+P
+(ŷ
+=
+6
+y
+)
+≥
+1
+−
+min
+exp
+−
+(2) If t2 ≤ 0, then N1 N
+,
+exp
+−
+.
+j
+j
+2
+j=1
+2
+2(σ −ct2 /3)
+q
+ P
+
+1
+Furthermore, if t2 ≤ − 2 ln 1−
+, then P N1 N
+≥ 1−e−N D(||1−φ(t2 )) .
+j=1 I (ŷj 6= yj ) ≥ 
+P
+Proof The aggregation rule can be expressed as ŷj = argmaxk∈{±1} M
+i=1 νi I (Zij = k)+ak ,
+where a+ = a and a− = 0. Directly apply Theorem 1 and Theorem 3, with fi (k, k) = νi for
+(i)
+(i)
+(i)
+k ∈ {±1}, fi (k, l) = 0 for k 6= l, and denote pkl in terms of p+ and p− , qij = qi , ∀j ∈ [N ],
+we can obtain the desired result immediately.
+Remark: From this corollary, we know that if t1 is big enough, then the error rate will
+be upper bounded by  with high probability. This means when the workers’ reliabilities
+are generally good, it is very likely that we will have high quality aggregated results. Note
+that usually we can freely choose q, ν and a, so the most important factors are worker
+(i)
+(i)
+reliabilities on positive samples (p+ ) and negative samples (p− ).
+If one needs to know, given  and δ, what are the results under the setting above
+corresponding to Theorem 2, we can simply compute t1 and t2 as listed in Corollary 4, then
+the conditions and bounds in Theorem 2 hold.
+As mentioned in the beginning of this section, weighted majority voting (WMV) is an
+important special case covered by our results in Section 3. For the next several results,
+we focus on the mean error rate bound of WMV and MV under Homogenous Dawid-Skene
+model.
+14
+
+For simplicity, we consider the case where task assignment is based on constant probability q. Therefore, in the following corollary, the label of any entry (i, j) is assumed to be
+revealed with constant probability q, and weighted majority voting (8) is applied to obtain
+the aggregated labels in the end.
+Corollary 5 (Weighted majority voting under Homogenous Dawid-Skene
+model) For weighted
+P
+majority voting, whose prediction rule is ŷj = argmaxk∈[L] M
+ν
+I
+(Z
+= k) with ν =
+i
+ij
+i=1
+(ν1 , ν2 , · · · , νM ). Assume the task assignment is based on constant probability q ∈ (0, 1],
+and assume the workers are modeled by the Homogenous Dawid-Skene model with parameter {wi }M
+i=1 , then with
+M
+
+||ν||∞
+and σ 2 = q
+(27)
+||ν||2
+i=1
+
+o
+n
+ 2
+P
+t
+t2
+P
+(ŷ
+=
+6
+y
+)
+≤
+(L
+−
+1)
+min
+exp
+−
+(1) if t ≥ 0, then N1 N
+,
+exp
+−
+j
+j
+2
+j=1
+2(σ +ct/3)
+o
+n
+ 2 2
+
+t
+t2
+1 PN
+(2) if t ≤ 0, then N j=1 P (ŷj 6= yj ) ≥ 1 − min exp − 2 , exp − 2(σ2 −ct/3)
+t=
+
+X
+q
+νi (Lwi − 1),
+(L − 1)||ν||2
+
+(i)
+
+c=
+
+(i)
+
+i
+Proof Under this setting, we have pkk = wi and pkl = 1−w
+L−1 when k 6= l. Meanwhile,
+fi (k, k) = νi for any k ∈ [L] and fi (k, l) = 0 for k, l ∈ [L], k 6= l. Then Γ = ||ν||2 . By
+plugging these above into the definitions of t1 , t2 , c and σ 2 in Section 3, we can then obtain
+the results.
+
+Remark: Note that t1 = t2 = t under the setting of this corollary. By replacing t1
+and t2 with t, the high probability bound on the error rate as in Theorem 1 and Theorem
+2 will hold as well. It is worth mentioning that the measure t is of critical importance for
+the quality of the final aggregated results. It depends not only on the workers’ reliability,
+but also on the weight vector ν, which can be chosen by us. This leaves room for us to
+study the best possible weight based on the bound we derived here. In Section 5.1, we will
+investigate the optimal weight in detail.
+As a further special case of weighted majority voting and a commonly used prediction
+rule in crowdsourcing, the majority voting (MV) rule
+the same weight for each worker.
+Puses
+M
+It can be formally expressed as ŷj = argmaxk∈[L] i=1 I (Zij = k). We can then directly
+obtain the error rate bounds of MV under the Homogenous Dawid-Skene model.
+Corollary 6 (Majority voting under Homogenous Dawid-Skene model)
+For majority voting
+1 PM
+with uniform random labeling distribution q ∈ (0, 1], and w̄ = M
+w̄ > L1 ,
+i=1 wi , if
+then
+(
+
+2
+
+ )
+N
+1 X
+1
+L
+1 2
+2
+P (ŷj 6= yj ) ≤ (L − 1) · exp −
+M q w̄ −
+.
+(28)
+N
+2 L−1
+L
+j=1
+
+Meanwhile, we have
+
+
+2
+ 
+
+1
+L
+1 2
+
+M q w̄ − L 
+2 L−1
+1
+P (ŷj 6= yj ) ≤ (L − 1) · exp −
+.
+L
+
+N
+1 + 3(L−1)
+(w̄ − L1 ) 
+
+
+j=1
+N
+X
+
+15
+
+(29)
+
+When q < 34 , the second upper bound (29) is tighter than the first one (28).
+Proof For obtaining
+the upper bounds,
+we directly apply Corollary 5 by letting νi = 1,
+√
+PM
+then ||ν||2 = M and note that i=1 (Lwi − 1) = LM (w̄ − L1 ). By direct simplification,
+we get the desired result. The only difference in the two bounds is that the exponent in the
+L
+second one is equal to the first one dividing by the factor α = q(1 + 3(L−1)
+(w̄ − L1 )). Since
+L
+w̄ ≤ 1, then 3(L−1)
+(w̄ − L1 ) ≤ 13 , and α < 1 when q < 43 . Therefore, q < 34 implies that the
+second bound is tighter than the first one.
+
+Remark: (1) In real crowdsourcing applications, it is common that q will be small enough
+due to the reasonable size of the available crowd (Snow et al., 2008). Thus the second bound
+will likely be tighter than the first one in practice. (2) The lower bound and its conditions
+can be easily derived similarly, so we omit them here since we are more interested in the
+“possibilities” of controlling the error rate to be small.
+Due to the importance of majority voting in the crowdsourcing community, we are also
+interested in asymptotic properties of the bound. The following corollary discusses the case
+when M → ∞, that is, when the number of workers who label items tends to infinity.
+Corollary 7 (Majority voting in the asymptotic scenario) For the Homogenous DawidSkene model with task assignment based on constant probability q ∈ (0, 1], and let ŷj be the
+predicted label for the jth item via majority voting rule (7), for any N ≥ 1,
+P
+(1) if limM →∞ w̄ > L1 , then N1 N
+j=1 I (ŷj 6= yj ) → 0 in probability as M → ∞;
+1
+1 PN
+(2) if limM →∞ w̄ < L , then N j=1 I (ŷj 6= yj ) → 1 in probability as M → ∞;
+(3) if limM →∞ w̄ > L1 , then
+ŷj → yj in probablitliy as M → ∞, ∀j ∈ [N ], i.e.,
+majority voting is consistent.
+√
+Lq
+Proof The setting of this corollary is the same as in Corollary 6, and t1 = L−1
+M (w̄ − L1 ).
+When limM →∞ w̄ > L1 , there exists η > 0 such that η = limM →∞ w̄ − L1 , which imP
+plies limM →∞ t1 = +∞, which further implies N1 N
+j=1 P (ŷj 6= yj ) = 0 for any N ≥ 1 by
+Corollary 6. This is to say that limM →∞ P(ŷj 6= yj ) = limM →∞ P(I (ŷj 6= yj ) = 1) = 0,
+which further implies that limM →∞ P(I (ŷj 6= yj ) = 0) = 1. Note that for arbitrary  > 0,
+we have P(I (ŷj 6= yj ) < ) ≥ P(I (ŷj 6= yj ) = 0), then limM →∞ P(I (ŷj 6= yj ) ≥ ) = 0, i.e.,
+I (ŷj 6= yj ) → 0, ∀j ∈ [N ] in probability when M → ∞ . By the properties of convergence in
+P
+probability, N1 N
+j=1 I (ŷj 6= yj ) → 0 in probability when M → ∞. With the same argument,
+one can prove (2) as well. To prove (3), note that P(ŷj − yj = 0) = P(I (ŷj 6= yj ) = 0) → 0
+as M → ∞, which implies ŷj → yj in probability as M → ∞.
+Remark: This corollary tells us that, if the average quality of the workers (i.e. the
+accuracy of labeling items) in the worker population, is better than random guess, then all
+the items can be labeled correctly with arbitrarily high probability when there are enough
+workers available. The consistency property of majority voting for finite number of items
+ensures us that as long as there are enough reliable workers (better than random guess)
+available, we can achieve arbitrary accuracy even by a simple aggregating approach —
+majority voting.
+16
+
+The examples we covered in this section do not require the estimation of parameters such
+as worker reliabilities. In the next section, we discuss the maximizing likelihood methods for
+inferring the parameters in crowdsourcing models, such as the celebrated EM (ExpectationMaximization) algorithm. Then we illustrate how our main results can be applied to analyze
+an underlining method that the ML methods approximate.
+4.2 Error rate bounds for the Maximum A Posteriori rule
+If we know the label posterior distribution of each item defined in (5), then the Bayes
+classifier is
+(j)
+ŷj = argmax ρk ,
+(30)
+k∈[L]
+
+which is well known to be the optimal classifier (Duda et al., 2012).
+In reality, we do not know the true parameters of the model, thus the true posterior
+remains unknown. One natural way is to estimate the parameters of the model by Maximum
+Likelihood methods, further estimate the posterior of each label class for each item, and
+then build a classifier based on that. This is usually called the Maximum A Posteriori
+(MAP) approach (Duda et al., 2012). After the EM algorithm estimating parameters, the
+Maximum A Posteriori (MAP) rule, which predicts the label of an item as the one that has
+the largest estimated posterior, can be applied. The prediction function of such a rule is
+(j)
+
+ŷj = argmax ρ̂k ,
+
+(31)
+
+k∈[L]
+
+(j)
+
+where ρ̂k is the estimated posterior. If the MAP rule is applied after the parameters are
+learned by the EM algorithm, then we call this method the EM-MAP rule, and sometimes
+simply refer it to EM without introducing any ambiguity in the context.
+However, the EM algorithm cannot guarantee convergence to the global optimum. Thus,
+the estimated parameters might be biased from the true parameters and the estimated
+posterior might be far away from the true one if it starts from a “bad” initialization.
+Moreover, it is generally hard to study the solution of the EM algorithm, and thus it is
+relatively difficult for us to obtain the error rate for the EM-MAP rule.
+We consider the oracle MAP rule, which assumes there is an oracle who knows the true
+parameters and uses the true posterior to predict labels. Hence the oracle MAP rule is the
+(j)
+Bayes classifier (30), and recall that its prediction function is ŷj = argmaxk∈[L] ρk , where
+(j)
+
+ρk is the true posterior of yj = k. Based on our empirical observations (Section 6), the
+EM-MAP rule approximates the oracle MAP rule well in performance when most of the
+workers are good (better than random guess). In the next, we provide an error rate bound
+for the oracle MAP rule, which hopefully will help us understand the EM-MAP rule better.
+The following result is about the error rate bounds on the oracle MAP rule, and it can
+be straightforwardly derived from the main results in Section 3 since the oracle MAP rule
+is a decomposable rule as in (9).
+Corollary 8 (Error rate bounds of the oracle MAP rule under the General
+Dawid-Skene
+n
+o
+(i)
+model) Suppose there is an oracle that knows the true parameters Θ =
+P
+,
+Q,
+π
+i∈[M ]
+17
+
+ 
+(i)
+where P (i) = pkh
+
+∈ (0, 1]L×L . The prediction function of the oracle MAP rule is
+k,h∈[L]
+(j)
+(j)
+ŷj = argmaxk∈[L] ρk , where ρk is the true posterior. All the error rate bounds in Theorem
+.
+(i)
+1, 2 and 3 hold for the oracle MAP rule with fi (k, h) = log pkh , ∀k, h ∈ [L].
+
+As a special case of General Dawid-Skene model, the Homogenous Dawid-Skene model
+is relatively easy to visualize and simulate. Therefore, the results under this model will
+be useful in simulation. The next corollary shows that the oracle MAP rule under the
+Homogenous Dawid-Skene model is weighted majority voting with class dependent shifts
+{ak }k∈[L] where ak = log πk . For simplicity, we assume that the true labels of the items are
+drawn from uniform distribution (i.e., πk = L1 , balanced classes).
+Corollary 9 (The oracle MAP rule under Homogenous Dawid-Skene model) Suppose the
+task assignment is based on a constant probability q ∈ (0, 1], and the prevalence of the true
+labels are balanced. Then the oracle MAP rule is a weighted majority voting rule under the
+Homogenous Dawid-Skene model with
+ŷj = argmax
+k∈[L]
+
+M
+X
+
+νi I (Zij = k)
+
+where νi = ln
+
+i=1
+
+(L − 1)wi
+, ∀i ∈ [M ].
+1 − wi
+
+(32)
+
+Let ν = (ν1 , ν2 , · · · , νM ). The mean error rate of the oracle MAP rule is upper bounded
+without any conditions on t1 , i.e., for any {wi }i∈[M ] ∈ (0, 1)M ,
+
+
+
+ 2
+N
+t21
+t1
+1 X
+, exp −
+,
+P (ŷj 6= yj ) ≤ (L − 1) · min exp −
+N
+2
+2 (σ 2 + ct1 /3)
+j=1
+
+q
+where t1 = (L−1)||ν||
+2
+
+PM
+
+i=1 νi (Lwi − 1),
+
+∞
+c = kνk
+||ν||2
+
+and
+
+σ 2 = q.
+
+The results in the section above help us understand more about the practice of inferring
+the ground truth labels via maximum likelihood methods. The prominent EM-MAP rule
+approximates the oracle MAP rule by estimating the parameters of crowdsourcing model
+and thus estimates the posterior distribution (5), then applies the MAP rule to predict the
+labels of items. A further study on the error rate bounds of the oracle MAP rule might
+be good for designing better algorithms with performance on par with the EM-MAP rule.
+This is the focus of the next section.
+
+5. Iterative weighted majority voting method
+In this section, we first study the mean error rate bound of weighted majority voting,
+then we minimize the bound to get the oracle bound-optimal rule. Finally, we present its
+connection to the oracle MAP rule. Based on the oracle bound-optimal rule, we propose
+an iterative weighted majority voting method with performance guarantee on its one-step
+version.
+18
+
+5.1 The oracle bound-optimal rule and the oracle MAP rule
+Here we explore the relationship between the oracle MAP rule and the mean error rate bound
+of WMV under the Homogenous Dawid-Skene model. We assume the task assignment
+is based on a constant probability q for simplicity, and ignore the shift terms {ak } in
+the aggregation rules (this is the case for the oracle MAP rule when the label classes are
+balanced, Corollary 9).
+The mean error rate bound of weighted majority voting
+5 implies
+n (WMV)
+ 2  in Corollary
+
+o
+t1
+t21
+1 PN
+that if t1 ≥ 0, then N j=1 P (ŷj 6= yj ) ≤ (L − 1) · min exp − 2 , exp − 2(σ2 +ct1 /3) ,
+where σ 2 = q and √1M ≤ c ≤ 1. Note that the impact of c on the bound is marginal
+compared to that of t1 since
+ c 2can
+ be replaced
+ by 12 to relax
+ the bound slightly. At the same
+t1
+t1
+time, both functions exp − 2 and exp − 2(σ2 +ct1 /3) are monotonely decreasing w.r.t.
+n
+ 2
+o
+
+t
+t21
+t1 ∈ [0, ∞). Thus the upper bound (L − 1) · min exp − 21 , exp − 2(σ2 +ct
+is also
+1 /3)
+monotonely decreasing w.r.t. t1 ∈ [0, ∞). The mean error rate is bounded from above with
+the condition t1 ≥ 0. Therefore, maximizing t1 will increase the chance of t1 ≥ 0 being
+satisfied and reduce the bound to some extent. Recall that
+M
+
+q X νi
+t1 =
+(Lwi − 1).
+L−1
+||ν||2
+i=1
+
+Since q is fixed now and we assume t1 ≥ 0, so optimizing the upper bound is equivalent to
+maximizing t1 :
+M
+
+ν?
+
+=
+
+argmax t1
+
+=
+
+argmax
+
+ν∈RM
+
+=⇒
+
+ν∈RM
+
+q X νi
+(Lwi − 1)
+L−1
+||ν||2
+
+The oracle bound-optimal rule:
+
+i=1
+
+WMV with νi? ∝ Lwi − 1.
+
+(33)
+
+Therefore a bound-optimal strategy is to choose the weight for WMV as in (33). This rule
+requires the information of the true parameters {wi }i∈[M ] , that is why we call it the oracle
+bound-optimal rule. In practice, we can estimate the parameters and plug {ŵi }i∈[M ] into
+(33), which we refer to as the bound-optimal rule.
+By Corollary 9, the oracle MAP rule under the Homogenous Dawid-Skene model is a
+weighted majority voting rule with weight
+νioracMAP = log
+
+(L − 1)wi
+L
+≈
+(Lwi − 1).
+1 − wi
+L−1
+
+The approximation is due to the Taylor expansion around x = L1 ,
+
+ !
+(L − 1)x
+L
+1 2
+ln
+=
+(Lx − 1) + O
+x−
+.
+1−x
+L−1
+L
+
+(34)
+
+Thus, the weight of the oracle bound-optimal rule is the first order Taylor expansion
+of the weight in the oracle MAP rule. Similar result and conclusion hold for the ClassConditional Dawid-Skene model as well, but we omit them here for clarity.
+19
+
+By observing that the oracle MAP rule is very close to the oracle bound-optimal rule,
+the oracle MAP rule approximately optimizes the upper bound of the mean error rate. This
+fact also indicates that our bound is meaningful since the oracle MAP rule is the oracle
+Bayes classifier.
+5.2 Iterative weighted majority voting with performance guarantee
+Based on Section 5.1, the oracle bound-optimal rule of choosing weights is νi ∝ L(wi − 1).
+With this strategy, if we have an estimated wi , we can put more weights to the “better”
+workers and downplay the “spammers” (those workers with accuracy close to random guess).
+This strategy can potentially improve the performance of majority vote and result in a better
+estimate for wi , which further improves the quality of the weights, and iterate. This inspires
+us to design an iterative weighted majority voting (IWMV) method as in Algorithm 1.
+Algorithm 1 The iterative weighted majority voting algorithm (IWMV)
+Input: Number of workers= M; Number of items= N; data matrix: Z ∈ [L]
+Output: the predicted labels {ŷ1 , ŷ2 , ..., ŷN }
+Initialization: νi = 1, ∀i ∈ [M ]; Tij = I (Zij 6= 0) , ∀i ∈ [M ], ∀j ∈ [N ].
+repeat
+M
+X
+ŷj ← argmax
+νi I (Zij = k) ,
+∀j ∈ [N ].
+k∈[L]
+
+M ×N
+
+;
+
+i=1
+
+PN
+ŵi ←
+
+j=1 I (Zij = ŷj )
+,
+PN
+j=1 Tij
+
+νi ← Lŵi − 1,
+
+∀i ∈ [M ].
+
+∀i ∈ [M ].
+
+until converges or reaches S iterations.
+P
+Output the predictions {ŷj }j∈[N ] by ŷj = argmaxk∈[L] M
+i=1 νi I (Zij = k).
+The time complexity of this algorithm is O((M + L)N S), where S is the number of
+iterations in the algorithm. Empirically, the IWMV method converges fast. But it also
+suffers from the local optimal trap as EM does, and is generally hard to analyze its error
+rate. However, we are able to obtain the error rate bound in the next theorem for a “naive”
+version of it – one-step WMV (osWMV), which executes (Step 1) to (Step 3) only once
+as follows:
+(Step 1) Use majority votingPto estimate labels, which are treated as the “golden
+standard”, i.e. ŷjMV = argmaxk∈[L] M
+i=1 I (Zij = k).
+(Step
+2)
+Use
+the
+current
+“golden
+standard” to estimate the worker accuracy ŵi =
+PN
+MV
+I
+Z
+=ŷ
+(
+)
+ij
+j=1
+j
+PM
+for all i and set νi = Lŵi − 1 for all i.
+i=1 I(Zij 6=0)
+
+(Step 3) Use thePcurrent weight v in WMV to estimate an updated “gold standard”,
+i.e., ŷj = argmaxk∈[L] M
+i=1 νi I (Zij = k).
+For the succinctness of the result, we focus on the case where L = 2, but the techniques
+used can be applied to the general case of L as well.
+
+20
+
+Theorem 10 (Mean error rate bound of one step WMV for binary labeling)
+Under the Homogenous Dawid-Skene model, with label sampling probability q = 1qand L = 2,
+
+1
+let ŷjwmv be the label predicted by one-step WMV for the jth item, if w̄ ≥ 12 + M
++
+the mean error rate of one-step WMV
+
+
+N
+
+1 X
+8M N 2 σ̃ 4 (1 − η)2
+wmv
+,
+P ŷj
+6= yj ≤ exp − 2
+N
+M N + (M + N )2
+
+(M −1) ln 2
+,
+2M 2
+
+(35)
+
+j=1
+
+where σ̃ =
+
+q
+
+1 PM
+1 2
+i=1 (wi − 2 ) and η = 2 exp
+M
+
+
+
+−
+
+1 2
+)
+2M 2 (w̄− 12 − M
+M −1
+
+
+
+The proof of this theorem is deferred to Appendix B. It is non-trivial to prove this theorem
+since the dependency among the weights and labels makes it hard to apply the concentration
+approach used in proving the previous results. Instead, a martingale-difference concentration bound has to be used.
+Remarks:
+1. In the exponent of the bound, there are several important factors: σ̃ represents how
+far away the accuracies of workers are from random guess, and it is a constant smaller
+than 1; η will be close to 0 given a reasonable M .
+2. The condition on w̄ requires that w̄ − 21 is Ω(M −0.5 ), which is easier to satisfy with
+M large if the average accuracy in the crowd population is better than random guess.
+This condition ensures that majority voting approximates the true labels. Thus with
+more items labeled, we can get a better estimate of the workers’ accuracies. The
+one-step WMV performance will then be improved with better weights.
+3. We address how M and N affect the bound : first, when both M and N increase
+but M
+N = r is a constant or decreases, the error rate bound decreases. This makes
+sense because with the number of items labeled per worker increasing, ŵi will be
+more accurate. The weights will be closer to the oracle bound-optimal rule. Second,
+when M is fixed and N increases, i.e., the number of items labeled increases, the upper
+bound on the error rate
+√ decreases. Third, when N is fixed and M
+√ increases, the bound
+decreases when M < N and then increases when M is beyond N . Intuitively, when
+M is larger than N and M increases, the fluctuation of score functions, where ŵi is
+the estimated accuracy of the ith worker, will be large. This increases the chance of
+making more prediction errors. When M is reasonably small (compared with N ) but
+is increasing, i.e., more people label each item, the accuracy of majority voting will
+be improved according to Corollary 9, then the gain on the accuracy of estimating ŵi
+results in the weights of the one-step WMV to be closer to the oracle bound-optimal
+rule.
+As an alternative way of assigning weights to workers in each iteration (Alg.1), we can
+also choose the weight of worker i by plugging ŵi into the weight in the oracle MAP rule.
+ŵi
+That is, νi0 = log (L−1)
+1−ŵi . We refer this variant of IWMV to the IWMV.log algorithm.
+From the practical point of view, however, νi0 is unbounded and too large (or too small) if
+estimator ŵi is close to 1 (or 0). Therefore IWMV.log uses an aggressive way to weigh the
+21
+
+workers, and it might be too risky when the estimates {ŵi }i∈[M ] are noisy. Recall that given
+an estimate ŵi of the reliability of worker i, the way that the IWMV algorithm chooses the
+weight is νi = Lŵi − 1. As a linearized version of νi0 (34), νi is more stable to the noise in
+the estimate ŵi . Furthermore, IWMV is more convenient for theoretical analysis than the
+IWMV.log algorithm. In the next section, we will show some comparisons between IWMV
+and IWMV.log by experiments.
+
+6. Experiments
+In this section, we first compare the theoretical error rate bound with the error rate of
+oracle MAP rule via simulation. Meanwhile, we compare IWMV with EM and IWMV.log
+on synthetic data. We then experimentally test IWMV and compare it with the state-ofart algorithms on real-world data. We implement majority voting, EM algorithm (Raykar
+et al., 2010) with MAP rule (also referred as the EM-MAP rule in the experiments), and
+use public available code 4 — the iterative algorithm in (Karger et al., 2011) is referred to
+as KOS, and the variational inference algorithm from (Liu et al., 2012) is referred to as LPI.
+All results are averaged over 100 random trials. All our experiments are implemented in
+Matlab 2012a, and run on a PC with Windows 7 operation system, Intel Core i7-3740QM
+(2.70GHz) CPU and 8GB memory.
+6.1 Simulation
+The error rate of a crowdsourcing system is affected by variations of different parameters
+such as number of workers M , number of items N and worker reliabilities {wi }i∈[M ] etc. To
+study how the error rate bound reflects the change of error rate when a parameter of the
+system changes, we conduct numerical experiments on simulated data for comparing the
+oracle MAP rule with its error rate bound (Corollary 9). We also measure the performance
+of the IWMV algorithm and compare it with the performance of oracle MAP rule.
+The simulations are run under the Homogenous Dawid-Skene model. Each worker has
+q =30% chance to label any item which belongs to one of three classes (L = 3). The
+ground truth labels of items are uniformly generated. The accuracies of workers (i.e., {wi })
+are sampled from a beta distribution Beta(a, b) with b = 2. Given an expected average
+2w̄
+worker accuracy w̄, we choose the paramater a = 1−
+w̄ so that the expected value for
+worker accuracies under distribution Beta(a, 2) matches with w̄. In each random trial in
+the simulation, we keep sampling M workers from this Beta distribution until the average
+worker accuracy is within ±0.01 range from the expected w̄. This is to maintain the average
+worker accuracy at the same level for each trial.
+First of all, we fix M = 31 and N = 200, then control the expected accuracy of the
+workers varies from 0.38 (slightly larger than random guess 1/L) to 1 with a step size 0.05.
+The averaged error rates are displayed in Figure 4(a). Note that the error rate of the oracle
+MAP rule is bounded by its mean error rate bound tightly (see Figure 4(a)). The bound
+follows the same trend of the true error rate of the oracle MAP rule. The performace of
+IWMV converges to that of the oracle MAP rule quickly as w̄ increases.
+4. http://www.ics.uci.edu/∼qliu1/codes/crowd tool.zip
+
+22
+
+0
+
+0
+
+0
+−0.2
+
+−1
+−1.5
+−2
+−2.5
+−3
+−3.5
+−4
+−4.5
+−5
+
+Oracle MAP rule
+Oracle MAP bound
+IWMV
+0.4
+
+0.5
+
+0.6
+
+0.7
+
+0.8
+
+0.9
+
+Average accuracy of workers
+
+(a)
+
+1
+
+−0.5
+
+log10(Mean error rate)
+
+log10(Mean error rate)
+
+log10(Mean error rate)
+
+−0.5
+
+−1
+
+−1.5
+
+−2
+
+Oracle MAP rule
+Oracle MAP bound
+IWMV
+
+−2.5
+
+−3
+
+0
+
+20
+
+40
+
+60
+
+−0.6
+−0.8
+−1
+−1.2
+−1.4
+
+Oracle MAP rule
+Oracle MAP bound
+IWMV
+
+−1.6
+−1.8
+−2
+
+80
+
+M: number of workers
+
+(b)
+
+−0.4
+
+100
+
+120
+
+0
+
+200
+
+400
+
+600
+
+800
+
+1000
+
+N: number of tasks
+
+(c)
+
+Figure 4: Comparing the oracle MAP rule with its theoretical error rate bound by simulation. The performance of the IWMV algorithm is also imposed. These simulations
+are done under the Homogenous Dawid-Skene model with L = 3 and q = 0.3.
+(a) Vary the average accuracy of workers and fix M = 31 and N = 200.(b) Vary
+M and fix N = 200. (c) Vary N and fix M = 31. The reliabilities of workers
+are sampled based on wi ∼Beta(2.3, 2), ∀i ∈ [M ] in (b) and (c). Note that all of
+them are in log scale and all the results are averaged across 100 repetitions.
+
+By fixing a = 2.3 and q = 0.3, we then vary one of the two parameters— number
+of items N (default as 200) and number of workers M (default as 31) — with the other
+parameter maintained as the default. The corresponding results are presented in Figure 4
+(b) and (c), respectively. According to the results of simulation, the error rate bound of the
+oracle MAP rule and its upper bound do not change when the number of tasks N increases
+(Figure 4(c)), but they change log linearly when the number of workers M increases (Figure
+4(b)). Nevertheless, the performance of IWMV changes whenever we increase M or N . It
+behaves closely to the oracle MAP rule when M varies, but differently from the oracle MAP
+rule when N increases. This is because with more and more tasks done by the workers,
+the estimation of the reliability of the workers will be more accurate, and this can boost
+the performance of IWMV. However, the oracle MAP rule knows the true worker reliability
+initially, so its performance will be independent with N .
+Our next simulation (Figure 5) shows that IWMV, its variant IWMV.log and the EM
+algorithm achieve the same final prediction accuracy, while IWMV has the lowest computational cost. Specifically, we vary the number of tasks N , and compare the final accuracy
+with one standard deviation error bar imposed (Figure 5(a)), the convergence time (Figure
+5(b)), the number of iterations (i.e. steps) to converge (Figure 5(c)) and the total run time
+for 50 iterations (Figure 5(d)). With almost the same accuracies, IWMV converges faster
+and takes less steps to converge than EM and IWMV.log, and the run time of IWMV is
+prominently lower than EM. Similar conclusions can be also confirmed when changing M ,
+q and L, thus we omit the similar results here.
+The experiments above are strictly simulated based on the Homogenous Dawid-Skene
+worker model for its simplicity. To compare IWMV with EM when the worker model is
+violated, we simulated toy data. See Figure 6(a) for the setup: suppose there are two
+23
+
+200
+
+Converg. time (ms)
+
+1
+
+Accuracy
+
+0.95
+0.9
+0.85
+
+IWMV
+IWMV.log
+EM
+
+0.8
+0.75
+0
+
+2000
+
+4000
+
+6000
+
+8000
+
+10000
+
+150
+
+100
+
+50
+
+0
+
+12000
+
+0
+
+2000
+
+4000
+
+N: number of tasks
+(a)
+
+8000
+
+10000
+
+12000
+
+10000
+
+12000
+
+1400
+
+Total run time (ms)
+
+Steps to converge
+
+6.5
+6
+5.5
+5
+4.5
+4
+3.5
+
+6000
+
+N: number of tasks
+(b)
+
+0
+
+2000
+
+4000
+
+6000
+
+8000
+
+10000
+
+1000
+800
+600
+400
+200
+0
+
+12000
+
+IWMV
+IWMV.log
+EM
+
+1200
+
+0
+
+2000
+
+4000
+
+N: number of tasks
+(c)
+
+6000
+
+8000
+
+N: number of tasks
+(d)
+
+Figure 5: Comparison between IWMV, IWMV.log and the EM-MAP rule, with the number of items varying from 1000 to 11000. Simulation was performed with
+L = 3, M = 31, q = 0.3 under the Homogenous Dawid-Skene model. The reliabilities of workers are sampled based on wi ∼Beta(2.3, 2), i ∈ [M ]. All the
+results are averaged across 100 repetitions. (a) Final accuracy with error bar imposed. (b) The time until convergence, and we need to know the ground truth for
+measuring it. (c) Number of steps to converge. (d) Total run time is computed
+based on finishing 50 iterations.
+
+0.14
+(12.9 +/− 0.1)%
+
+𝑺𝟏 : 60 items
+
+0.12
+
+𝑺𝟐 : 40 items
+
+𝑮𝟏 : 20
+workers
+𝑮𝟐 : 30
+workers
+
+0.9
+0.5
+
+0.6
+
+0.7
+
+Error rate
+
+0.1
+
+(10.3 +/− 0.1)%
+(9.7 +/− 0.1)% (9.4 +/− 0.1)%
+
+0.08
+0.06
+0.04
+0.02
+0
+
+(a)
+
+MV
+
+EM
+
+IWMV.log
+
+IWMV
+
+(b)
+
+Figure 6: (a) Setting of model misspecification. (b) Performance comparison under model
+misspecification setting in (a).
+
+group of workers G1 and G2 , and two sets of items S1 and S2 . The true labels of items are
+generated uniformly from {±1}. The data matrix is generated as follows: P(Zij = yj ) = 0.9
+24
+
+if i ∈ G1 , j ∈ S1 ; P(Zij = yj ) = 0.6 if i ∈ G1 , j ∈ S2 ; P(Zij = yj ) = 0.5 if i ∈ G2 , j ∈ S1 ;
+P(Zij = yj ) = 0.7 if i ∈ G2 , j ∈ S2 . We use q = 0.3. The error rate (with one standard
+deviation) of MV, EM, IWMV.log and IWMV are shown in Figure 6 (b), which shows that
+IWMV achieves lower error rate than EM and IWMV.log do in this model misspecification
+example. The results in Figure 6 shows that IWMV are more robust than EM under
+model misspecification to some extent. Similar results can be obtained under other different
+configuations (as in Figure 6), and we omit them here.
+6.2 Real data
+To compare our proposed iterative weighted majority voting with the state-of-the-art methods (Raykar et al., 2010; Karger et al., 2011; Liu et al., 2012), we conducted several experiments on real data (most of them are publicly available). We sampled the collected labels in
+the real data independently with probability q̃ which varies from 0.1 to 1, and see how the
+error rate and run time change accordingly. For clarity of the figures produced in this section, we omit the results of IWMV.log since its performance is usually worse than IWMV in
+terms of both accuracy and computational time. Our focus will be the comparisons among
+IWMV, EM, KOS and LPI.
+Table 1: The summary of datasets used in the real data experiments. w̄ is the average
+worker accuracy.
+
+Dataset
+
+L classes
+
+M workers
+
+N items
+
+#labels
+
+w̄
+
+Duchenne
+RTE
+Temporal
+Web search
+
+2
+2
+2
+5
+
+17
+164
+76
+177
+
+159
+800
+462
+2665
+
+1221
+8000
+4620
+15539
+
+65.0%
+83.7%
+84.1%
+37.1%
+
+Duchenne dataset. The first dataset is from (Whitehill et al., 2009) on identifying
+Duchenne smile from non-Duchenne smile based on face images. In this data, 159 images are labeled with {Duchenne, non-Duchenne} labels by 17 different Mechanical Turk5
+workers. In total, there are 1,221 labels, thus 1221/(17×159)= 45.2% of the potential task
+assignments are done (i.e., 45.2% of the entires in the data matrix are observed). The
+ground truth labels are obtained from two certified experts and 58 out of the 159 images
+contain Duchenne smiles. The Duchenne images are hard to identify (the average accuracy
+of workers on this task is only 65%).
+We conducted the experiments by sampling the labels independently with probability
+q̃ varying from 0.1 to 1. Thus the proportion of non-zero labels in the data matrix will
+vary from 0.6% to 45.2%. Note that based on our setting, the task assignment probability
+corresponding to q̃ is q = q̃ × 45.2%. After sampling the data matrix from the original
+Duchenne dataset with a given q̃, we then run IWMV, majority voting, the EM algorithm
+5. https://www.mturk.com
+
+25
+
+Duchenne Dataset (Whitehill et al., 2009)
+
+Duchenne Dataset (Whitehill et al., 2009)
+
+0.5
+
+0.35
+
+EM−MAP
+Majority Voting
+KOS
+LPI
+IWMV
+
+1600
+
+1500
+
+1000
+
+1200
+1000
+800
+600
+400
+
+500
+
+0.3
+
+ER=27.7%
+
+1400
+Run time (ms)
+
+0.4
+
+2000
+
+Run time (ms)
+
+EM−MAP
+Majority Voting
+KOS
+LPI
+IWMV
+
+0.45
+
+Error rate
+
+Duchenne Dataset (Whitehill et al., 2009)
+
+2500
+
+200
+0.25
+4.5%
+
+9.0%
+
+13.6% 18.1% 22.6% 27.1% 31.6% 36.1% 40.7% 45.2%
+
+0
+4.5%
+
+9.0%
+
+13.6% 18.1% 22.6% 27.1% 31.6% 36.1% 40.7% 45.2%
+
+Percentage of task assignments done
+
+Percentage of task assignments done
+
+(a)
+
+(b)
+
+0
+
+ER=29.2%
+ER=25.8% ER=36.4%
+
+IWMV
+
+EM
+
+KOS
+
+LPI
+
+(c)
+
+Figure 7: Duchenne smile dataset (Whitehill et al., 2009). (a) Error rate of different algorithms when the number of labels available increases. (b) Run time comparison.
+(c) A visualization with both run time and error rate when 40.7% of the task
+assignments are done.
+
+(Raykar et al., 2010) , KOS (the iterative algorithm in (Karger et al., 2011)), and LPI (the
+variational inference algorithm from (Liu et al., 2012)). The entire process will be repeated
+100 times, and the results will be averaged. The comparison is shown in Figure 7(a).
+From Figure 7(a), We can see that when the available labels are very few, the performance of IWMV is as good as LPI, and these two generally dominate the other algorithms.
+With more labels available, the error rate of IWMV is around 2% lower than LPI (Figure
+7(a)). At the same time, we compared the run time of each algorithm (Figure 7(b)). With
+more labels, the run time of LPI increases fast (non-linearly), while the IWMV maintains
+a lower run time than EM, KOS and LPI. For a better visualization of comparing run time
+and error rate, we compared the run time of IWMV, EM, KOS and LPI by a bar plot with
+their error rates imposed on top. Figure 7(c) shows the comparison when 40.7% of the
+labels are available (q̃ = 0.9). IWMV is more than 100 times faster than LPI, and achieves
+the lowest error rate among these algorithms.
+An interesting phonomenon in Figure 7(a) is that EM performs poorly — it is even
+worse than MV. The major reason for this is that the workers reliabilities form a pattern
+similar to our model misspecification example in Figure 6(a): some workers are good at
+a set of images but bad at the complementary set of images, while the other workers are
+reversed. This is a real-data example of model misspecificatioin, and IWMV is more robust
+to the model misspecification on this data than EM.
+RTE dataset. The RTE data is a language processing dataset from (Snow et al., 2008).
+The dataset is collected by asking workers to perform recognizing textual entailment (RTE)
+tasks, i.e., for each question the worker is presented with two sentences and given a binary
+choice of whether the second sentence can be inferred from the first.
+Temporal event dataset. This dataset is also a natural language processing dataset from
+(Snow et al., 2008). The task is to provide a label from {strictly before, strictly after} for
+event-pairs that represents the temporal relation between them.
+26
+
+RTE dataset (Snow et al., 2008)
+
+RTE dataset (Snow et al., 2008)
+
+0.55
+0.5
+
+EM−MAP
+Majority Voting
+KOS
+LPI
+IWMV
+
+7000
+
+0.4
+0.35
+0.3
+0.25
+0.2
+
+6000
+
+6000
+
+ER=8.3%
+
+5000
+Run time (ms)
+
+EM−MAP
+Majority Voting
+KOS
+LPI
+IWMV
+
+Run time (ms)
+
+0.45
+
+5000
+4000
+3000
+2000
+
+4000
+3000
+ER=49.6%
+
+2000
+
+0.15
+1000
+
+0.1
+0.05
+0.6%
+
+1.2%
+
+1.8%
+
+2.4%
+
+3.0%
+
+3.7%
+
+4.3%
+
+4.9%
+
+5.5%
+
+6.1%
+
+1000
+
+0
+0.6%
+
+1.2%
+
+1.8%
+
+2.4%
+
+3.0%
+
+3.7%
+
+4.3%
+
+4.9%
+
+5.5%
+
+Percentage of task assignments done
+
+Percentage of task assignments done
+
+(a)
+
+(b)
+
+6.1%
+
+0
+
+ER=8.2%
+
+ER=8.4%
+
+IWMV
+
+EM
+
+KOS
+
+LPI
+
+(c)
+
+Figure 8: RTE dataset (Snow et al., 2008). (a) Error rate of different algorithms. (b) Run
+time when the percentage of the task assignments done increases. (c) Run time
+comparison when 4.9% of the task assignments is done. The error rates of each
+method are imposed on the top of the bar.
+
+We conducted similar experiments on the RTE dataset and the temporal event dataset
+as the one on the Duchenne dataset. The results on the RTE dataset are shown in Figure 8.
+Figure 8(a) is the performance curves of different algorithms when the percentage of task
+assignments done increases. Figure 8(b) is the run time of these algorithms, and it confirms
+the same observations as the results on the Duchenne dataset: the IWMV runs much
+faster than the other algorithms except majority voting, and it has similar performance to
+LPI which is the state-of-art method (Figure 8(c)). For clarity, we show the performance
+comparison on temporal event dataset in Figure 9(a) and omit the run time comparison.
+Web search dataset (Zhou et al., 2012)
+
+Temp dataset (Snow et al., 2008)
+
+0.8
+
+0.45
+
+EM−MAP
+Majority Voting
+IWMV
+
+0.7
+
+0.4
+0.35
+
+0.6
+
+EM−MAP
+Majority Voting
+KOS
+LPI
+IWMV
+
+0.3
+0.25
+
+Error rate
+
+Error rate
+
+Error rate
+
+RTE dataset (Snow et al., 2008)
+
+8000
+
+0.5
+
+0.4
+
+0.2
+
+0.3
+0.15
+
+0.2
+
+0.1
+0.05
+1.3%
+
+2.6%
+
+3.9%
+
+5.3%
+
+6.6%
+
+7.9%
+
+9.2%
+
+0.1
+0.3%
+
+10.5% 11.8% 13.2%
+
+0.7%
+
+1.0%
+
+1.3%
+
+1.7%
+
+2.0%
+
+2.3%
+
+2.7%
+
+3.0%
+
+3.3%
+
+Percentage of task assignments done
+
+Percentage of task assignments done
+
+(a)
+
+(b)
+
+Figure 9: (a) Results on Temp dataset from (Snow et al., 2008). (b) Results on Web search
+dataset (Zhou et al., 2012).
+Web search dataset. In this dataset (Zhou et al., 2012), workers were asked to rate
+query-URL pairs on a relevance rating scale from 1 to 5. Each pair was labeled by around
+27
+
+6 workers, and around 3.3% of the entries in the data matrix are observed. The ground
+truth labels were collected via consensus from 9 experts. We treat the task as a multiclass labeling problem, thus L = 5. We conduct the experiment in a similar setting to the
+experiment on the Duchenne dataset — sampling the labels with probability q̃ and varied
+it to plot the performance curve (Figure 9(b)). Since LPI and KOS is constrained to binary
+labeling so far, we only compared IWMV with the EM-MAP rule and majority voting. The
+performance of IWMV generally outperforms the EM-MAP rule and majority voting by at
+least 4%.
+
+7. Conclusions
+In this paper, we provided finite sample bounds on the error rate (in probability and in expectation) of decomposable aggregation rules under the general Dawid-Skene crowdsourcing
+model. Optimizing the mean error rate bound under the Homogenous Dawid-Skene model
+leads to an aggregation rule that is a good approximation to the oracle MAP rule. A datadriven iterative weighted majority voting is proposed to approximate the oracle MAP with
+a theoretical guarantee on the error rate of its one-step version.
+Through simulations under the Homogenous Dawid-Skene model (for simplicity) and
+tests on real data, we have the following findings.
+1. The error rate bound reflects the trends of the real error rate of the oracle MAP rule
+when some important factors in the crowdsourcing systems such as (M, N, {wi }i∈[M ]
+etc.) change.
+2. The IWMV algorithm is close to the oracle MAP rule with superior performance in
+terms of error rate.
+3. The iterative weighted majority voting method (IWMV) performs as well as the EMMAP rule with much lower computational cost in simulation, and IWMV is more
+robust to model-misspecification than EM.
+4. On real data, IWMV achieved performance as good as or even better than that of the
+state-of-the-art methods with much less computational time.
+In practice, if we want to obtain the error rate bounds for certain aggregation rules that
+falls in the form of decomposable aggregation rule (9), what we can do should be similar
+to what we did in Section 4: (1) for the specific model and task assignment, compute the
+measure of t1 and t2 (and also c and σ 2 if interested in bounds on the mean error rate)
+according to the descriptions in Section 3.1. (2) Compute the corresponding error rate
+bounds according to the theorems in Section 3. The quantities t1 and t2 can tell us if we
+can obtain upper bound or lower bound on the error rate in probability and in expectation.
+Note that though the mean error rate bounds (Theorem 3) are in a composite form of two
+exponential bounds, we can choose one of the two to use if the convenience of theoretical
+analysis is concerned.
+To the best of our knowledge, this is the first extensive work on error rate bounds for general aggregation rules under the practical Dawid-Skene model for multi-class crowdsourced
+labeling. Our bounds are useful for explaining the effectiveness of different aggregation
+rules.
+28
+
+As a further direction for research, it would be interesting to obtain finite sample error
+bounds for the aggregation rules with random score functions, which depend on the data
+in a complicated manner. For example, the EM-MAP rule can be formulated as a weighted
+majority voting under the Homogenous Dawid-Skene model. However, the weights are
+estimated by EM algorithm (Raykar et al., 2010) and depend on the data complicatedly.
+Hence the analysis of the EM algorithm is rather difficult. The IWMV and the EM algorithm
+share the similar iterative nature, and IWMV is simpler than EM. An error rate analysis
+of the final prediction of the IWMV will be helpful to understand the behavior of EM
+algorithm in the crowdsourcing context.
+
+8. Acknowledgement
+We thank Dengyong Zhou for his valuable suggestions and enlightening comments which
+lead to many improvements of this paper. We would like to thank Riddhipratim Basu and
+Qiang Liu for the valuable discussions. We would also like to thank Terry Speed for his
+helpful comments and suggestions.
+
+References
+D. Angluin and P. Laird. Learning from noisy examples. Machine Learning, 2(4):343–370,
+1988.
+Y. Bachrach, T. Graepel, T. Minka, and J. Guiver. How to grade a test without knowing the
+answers — a bayesian graphical model for adaptive crowdsourcing and aptitude testing.
+In ICML, pages 1183–1190, New York, NY, USA, 2012.
+J. A. Bilmes. A Gentle Tutorial of the EM Algorithm and its Application to Parameter
+Estimation for Gaussian Mixture and Hidden Markov Models. Technique Report, 1198
+(510), 1998.
+X. Chen, Q. Lin, and D. Zhou. Optimistic Knowledge Gradient Policy for Optimal Budget
+Allocation in Crowdsourcing. In ICML, 2013.
+F. Chung and L. Liu. Old and new concentration inequalities, Chapter 2 in Complex Graphs
+and Networks. AMS, 2010. ISBN ISBN-10:0-8218-3657-9.
+N. Dalvi, A. Dasgupta, R. Kumar, and V. Rastogi. Aggregating crowdsourced binary
+ratings. In WWW, 2013.
+A. P. Dawid and A. M. Skene. Maximum Likelihood Estimation of Observer Error-Rates
+Using the EM Algorithm. Journal of the Royal Statistical Society., 28(1):20–28, 1979.
+Marie Jean Antoine Nicolas de Caritat et al. Essai sur l’application de l’analyse à la
+probabilité des décisions rendues à la pluralité des voix. L’imprimerie royale, 1785.
+O. Dekel and O. Shamir.
+Good learners for evil teachers.
+Proceedings of the
+26th Annual International Conference on Machine Learning, pages 1–8, 2009. doi:
+10.1145/1553374.1553404.
+29
+
+A. P. Dempster, N. M. Laird, and D. B. Rubin. Maximum likelihood from incomplete data
+via the em algorithm. Journal of the Royal Statistical Society. Series B (Methodological),
+pages 1–38, 1977.
+R. O. Duda, P. E. Hart, and D. G. Stork. Pattern classification. John Wiley & Sons, 2012.
+S. Ertekin, H. Hirsh, and C. Rudin. Approximating the Wisdom of the Crowd. In NIPS
+Workshop on Computational Social Science and the Wisdom of Crowds, pages 1–5, 2011.
+C. Gao and D. Zhou. Minimax optimal convergence rates for estimating ground truth from
+crowdsourced labels. arXiv:1310.5764, 2014.
+C. Ho, S. Jabbari, and J. W. Vaughan. Adaptive Task Assignment for Crowdsourced
+Classification. In ICML, 2013.
+W. Hoeffding. On the distribution of the number of successes in independent trials. The
+Annals of Mathematical Statistics, pages 713–721, 1956.
+R. Jin and Z. Ghahramani. Learning with Multiple Labels. In NIPS, 2002.
+D. R. Karger, S. Oh, and D. Shah. Iterative learning for reliable crowdsourcing systems. In
+NIPS, 2011.
+Q. Liu, J. Peng, and A. Ihler. Variational Inference for Crowdsourcing. In NIPS, 2012.
+C. McDiarmid.
+Concentration.
+Technique
+http://cgm.cs.mcgill.ca/ breed/conc/colin.pdf.
+
+Report,
+
+1998.
+
+URL
+
+N. Natarajan, I. Dhillon, P. Ravikumar, and A. Tewari. Learning with noisy labels. In
+NIPS, pages 1196–1204, 2013.
+H. Q. Ngo. Tail and Concentration Inequalities. Lecture Notes, pages 1–6, 2011. URL
+http://www.cse.buffalo.edu/ hungngo/classes/2011/Spring-694/lectures/l4.pdf.
+V. C. Raykar, S. Yu, L. H. Zhao, C. Florin, L. Bogoni, and L. Moy. Learning From Crowds.
+Journal of Machine Learning Research, 11:1297–1322, 2010.
+C. S. Sheng and F. Provost. Get Another Label? Improving Data Quality and Data Mining
+Using Multiple, Noisy Labelers Categories and Subject Descriptors. SIGKDD, pages
+614–622, 2008.
+P. Smyth, U. Fayyad, M. Burl, P. Perona, and P. Baldi. Inferring Ground Truth from
+Subjective Labelling of Venus Images. In NIPS, 1995.
+R. Snow, B. O. Connor, D. Jurafsky, and A. Y. Ng. Cheap and Fast - But is it Good ?
+Evaluating Non-Expert Annotations for Natural Language Tasks. EMNLP, 2008.
+P. Welinder, S. Branson, S. Belongie, and P. Perona. The Multidimensional Wisdom of
+Crowds. In NIPS, 2010.
+30
+
+J. Whitehill, P. Ruvolo, T. Wu, J. Bergsma, and J. Movellan. Whose Vote Should Count
+More : Optimal Integration of Labels from Labelers of Unknown Expertise. In NIPS,
+2009.
+Y. Yan, R. Rosales, G. Fung, M. Schmidt, G. Hermosillo, L. Bogoni, L. Moy, and J. G. Dy.
+Modeling annotator expertise : Learning when everybody knows a bit of something. In
+ICML, volume 9, pages 932–939, 2010.
+Y. Yan, R. Rosales, G. Fung, and J. G. Dy. Active Learning from Crowds. In ICML, 2011.
+D. Zhou, J. Platt, S. Basu, and Y. Mao. Learning from the Wisdom of Crowds by Minimax
+Entropy. In NIPS, 2012.
+
+Appendix A. Proofs of the main theorems
+Since the proof of Theorem 1 requires other theorems in this paper, we will not present the
+proofs in the same order as in the paper. The order of our proofs will be: Proposition 11,
+Theorem 3, Theorem 1 and then Theorem 2. After proving the first four main results, we
+also prove Corollary 8 and Corollary 9. Since the proof of Theorem 10 requires different
+techniques and more efforts than the proofs in this section, we put its proof in a seperate
+section — Appendix B.
+Before presenting the proofs, we would like to propose some notations for simplicity and
+clarity.
+We simplify fi (k, h) to
+(i) .
+µkh = fi (k, h), ∀k ∈ [L], h ∈ [L],
+(36)
+(i)
+
+(i)
+
+∀k ∈ [L], j ∈ [N ]
+
+(38)
+
+then each worker is associated with a vote matrix µ(i) = (µkh ), k ∈ [L], h ∈ [L], where µkh
+is the voting score when worker i labels item j whose true label is k, as class h if h 6= 0.
+Then the aggregation rule (9) is equivalent to
+!
+M X
+L
+X
+(i)
+(37)
+µkh I (Zij = h) + ak ,
+ŷj = argmax
+k∈[L]
+
+i=1 h=1
+
+Note that
+(j)
+
+sk =
+
+M X
+L
+X
+
+(i)
+
+µkh I (Zij = h) + ak ,
+
+i=1 h=1
+
+is the aggregated score of label class k on the jth item, and the general aggregation rule is
+(j)
+
+ŷj = argmax sk .
+
+(39)
+
+k∈[L]
+
+We will frequently discuss conditional probability, expectation and variance conditioned
+on the event {yj = k}. For simplicity of notations, we define:
+.
+Pk ( · ) = P( · |yj = k)
+(40)
+.
+Ek [ · ] = E[ · |yj = k]
+(41)
+.
+Vark ( · ) = Var( · |yj = k).
+(42)
+31
+
+Note that
+M X
+L
+h i X
+(j)
+(i) (i)
+Ek sl
+=
+qij µlh pkh + al , ∀l, k ∈ [L].
+
+(43)
+
+i=1 h=1
+
+A.1 Proof of Proposition 11: bounding the mean error rate of labeling each
+item
+Proposition 11 (Bounding the mean error rate of labeling each item) Following
+the setting of Theorem 1, and with τj,min and τj,max
+as 
+in (14), we have ∀j ∈ [N
+],
+ defined
+
+τ2
+
+τ2
+
+j,min
+;
+, exp − 2(σ2 +cτ
+(1) if τj,min ≥ 0, then P(ŷj 6= yj ) ≤ (L−1)·min exp − j,min
+2
+j,min /3)
+
+ 2 
+
+
+2
+τ
+τj,max
+(2) if τj,max ≤ 0, then P(ŷj 6= yj ) ≥ 1 − min exp − j,max
+.
+,
+exp
+−
+2
+2
+2(σ −cτj,max /3)
+
+Remark: Proposition 11 provides the mean error rate bounds of labeling
+n
+o any specific
+(j)
+item, and the bounds depend on the minimum and maximum values of Λkl
+. Note
+k,l∈[L]
+
+that the subscript j only comes from the assignment distribution qij . If a specific worker has
+the same assignment probability to label all items, say qi , then we can drop the subscript
+j from τj,min and τj,max , which means the error rate bounds of each item are eventually the
+same under that task assignment.
+Proof First of all, we expand the error probability of labeling the j-th item wrong in terms
+of the conditional probabilities:
+X
+X
+P(ŷj 6= yj ) =
+P(yj = k)P(ŷj 6= k|yj = k) =
+πk Pk (ŷj 6= k) .
+(44)
+k∈[L]
+
+k∈[L]
+
+Our major focus in this proof is to bound the term Pk (ŷj 6= k). Our approach will be
+based on the following events relations:
+o
+o
+[ n (j)
+[ n (j)
+(j)
+(j)
+sl > sk
+⊆ {ŷj 6= k} ⊆
+sl ≥ sk .
+(45)
+l∈[L],l6=k
+
+l∈[L],l6=k
+
+(1). Assuming τj,min ≥ 0, we want to show the lower bound for P(ŷj 6= yj ). Note that
+
+
+
+
+o
+[ n (j)
+X
+(j)
+(j)
+(j)
+Pk sl ≥ sk .
+(46)
+Pk (ŷj 6= k) ≤ Pk 
+sl ≥ sk  ≤
+l∈[L],l6=k
+(j)
+
+With sl
+
+l∈[L],l6=k
+
+(j)
+
+defined as in (38), Λkl defined as in (13) and
+L
+
+X (i)
+(i) .
+(i)
+ξkl =
+(µlh − µkh )I (Zij = h) ,
+
+(47)
+
+h=1
+L
+h i X
+
+
+(i)
+(i)
+(i)
+(i)
+Ek ξkl =
+qij µlh − µkh pkh ,
+h=1
+
+32
+
+(48)
+
+we have
+
+Pk
+
+(j)
+(j)
+sl ≥ sk
+
+
+
+= Pk
+= Pk
+= Pk
+= Pk
+
+M X
+L 
+
+X
+(i)
+(i)
+µlh − µkh I (Zij = h) ≥ ak − al
+
+!
+
+i=1 h=1
+!
+M
+X
+(i)
+ξkl ≥ ak − al
+i=1
+!
+M
+M
+M
+h i
+h i
+X
+X
+X
+(i)
+(i)
+(i)
+ξkl −
+Ek ξkl ≥ (ak − al ) −
+Ek ξkl
+,
+i=1
+i=1
+i=1
+!
+M
+M
+h i
+X
+X
+(i)
+(i)
+(j)
+ξkl −
+Ek ξkl ≥ Λkl
+i=1
+i=1
+
+(49)
+
+n o
+(i)
+ξkl
+
+are conditionally independent when given {yj = k}, and they
+n
+o
+(i)
+are bounded given the voting weights µkh are bounded. Therefore, we can apply the
+
+
+(j)
+(j)
+Hoeffding concentration inequality (Hoeffding, 1956) to further bound Pk sl ≥ sk .
+n
+o
+n
+o
+(i)
+(i)
+(i)
+(i)
+(i)
+We have that minl,k,h∈[L],k6=l µlh − µkh ≤ ξkl ≤ maxl,k,h∈[L],k6=l µlh − µkh , and
+Note that
+
+M 
+X
+
+i∈[M ]
+
+max
+l,k,h∈[L],k6=l
+
+i=1
+
+n
+o
+(i)
+(i)
+µlh − µkh −
+
+min
+l,k,h∈[L],k6=l
+
+M 
+n
+o2
+X
+(i)
+(i)
+µlh − µkh
+≤
+2
+i=1
+2
+
+2
+
+max
+l,k,h∈[L],k6=l
+
+(i)
+(i)
+|µlh − µkh |
+
+= 4Γ
+(j)
+
+When Λkl ≥ τj,min · Γ ≥ 0, by applying the Hoeffding inequality to (49), we have
+
+
+(j)
+
+Pk s l
+
+(j)
+
+≥ sk
+
+
+
+≤ Pk
+
+M
+M
+h i
+X
+X
+(i)
+(j)
+(i)
+ξkl −
+Ek ξkl ≥ Λkl
+i=1
+
+!
+
+i=1
+
+
+
+
+
+≤
+
+(j) 2
+2Λkl
+
+
+exp − P h
+n
+o
+n
+oi2 
+(i)
+(i)
+(i)
+(i)
+M
+i=1 maxl,k,h∈[L],k6=l µlh − µkh − minl,k,h∈[L],k6=l µlh − µkh
+
+
+
+≤
+
+
+
+(j) 2
+Λkl
+
+
+exp −
+2Γ2
+
+≤ exp −
+
+2
+τj,min
+
+2
+
+(because of (50))
+
+!
+.
+
+(based on the definition of τj,min ))
+
+The right hand side of the last inequality does not depend on k, l or i, then
+!
+2
+
+
+X
+τj,min
+(j)
+(j)
+Pk (ŷj 6= k) ≤
+Pk sl ≥ sk
+≤ (L − 1) exp −
+.
+2
+l∈[L],l6=k
+
+33
+
+(50)
+
+Because the RHS does not depend on k, we have
+P(ŷj 6= yj ) =
+
+X
+
+πk Pk (ŷj 6= k)
+
+k∈[L]
+
+≤ (L − 1) exp −
+
+= (L − 1) exp −
+
+2
+τj,min
+
+2
+
+
+!
+X
+
+πk 
+k∈[L]
+
+2
+τj,min
+
+!
+(51)
+
+2
+
+The Hoeffding inequality does not take the variance information of the independent random
+variables into account, thus a “stronger” concentration inequality can be applied when the
+(i)
+fluctuation of ξkl is available.
+Note the definition of c and σ 2 are defined as
+1
+(i)
+(i)
+·
+max
+|µ − µlh |,
+Γ i∈[M ],k,l,h∈[L],k6=l kh
+M X
+L
+
+
+X
+1
+(i)
+(i) 2 (i)
+·
+max
+max
+q
+µ
+−
+µ
+pkh .
+ij
+kh
+lh
+Γ2 j∈[N ] k,l∈[L],k6=l
+
+c =
+σ2 =
+
+i=1 h=1
+
+(i)
+
+The sum of the second moment of ξkl can be bounded as
+M
+X
+
+
+Ek
+
+(i)
+ξkl
+
+2 
+
+=
+
+i=1
+
+M
+X
+
+
+Ek 
+
+i=1
+(i)
+
+L
+X
+
+!2 
+(i)
+(i)
+(µlh − µkh )I (Zij = h)
+
+=
+
+M X
+L
+X
+
+
+
+(i)
+(i) 2 (i)
+qij µkh − µlh pkh ≤ σ 2 Γ2 .
+
+i=1 h=1
+
+h=1
+(i)
+
+(i)
+
+(i)
+
+ξkl can be bounded as |ξkl | ≤ maxi∈[M ],h∈[L] |µlh − µkh | = cΓ.
+By applying the Bernstein-type concentration inequality ((Chung and Liu, 2010), The(j)
+orem 2.8) with that Λkl ≥ τj,min Γ ≥ 0,
+
+
+(j)
+
+Pk sl
+
+(j)
+
+≥ sk
+
+
+
+≤ Pk
+
+M
+M
+h i
+X
+X
+(i)
+(i)
+(j)
+ξkl −
+Ek ξkl ≥ Λkl
+i=1
+
+
+
+!
+
+i=1
+
+
+
+(j) 2
+
+Λkl
+
+ ,
+≤ exp − 
+(j)
+2 σ 2 + cΓΛkl /3
+!
+2
+τj,min
+≤ exp −
+2 (σ 2 + cτj,min /3)
+
+(j)
+
+Λ
+(because kl ≥ τj,min ≥ 0),
+Γ
+
+where the RHS does not depend on k, l. Then, we have
+Pk (ŷj 6= k) ≤ (L − 1) exp −
+34
+
+2
+τj,min
+
+2 (σ 2 + cτj,min /3)
+
+!
+.
+
+(52)
+
+Furthermore,
+P(ŷj 6= yj ) =
+
+X
+
+πk Pk (ŷj 6= k) ≤ (L − 1) exp −
+
+k∈[L]
+
+2
+τj,min
+
+!
+
+2 (σ 2 + cτj,min /3)
+
+.
+
+(53)
+
+Combining inequalities (51) and (53) together, we can get the desired result in Theorem
+11.(1).
+(2). Assuming that τj,max ≤ 0, we want to show the upper bound for P(ŷj 6= yj ).
+Using the same argument as in (1), we provide a lower bound for Pk (ŷj 6= k).
+
+[
+
+Pk (ŷj 6= k) ≥ Pk 
+
+
+n
+o
+(j)
+(j)
+sl > sk 
+
+l∈[L],l6=k
+
+≥
+
+
+
+(j)
+(j)
+max Pk sl > sk
+
+l∈[L],l6=k
+
+
+
+(j)
+(j)
+= 1 − min Pk sl ≤ sk
+l∈[L],l6=k
+
+(j)
+
+Given Λkl ≤ τj,max · Γ ≤ 0, by applying the Hoeffding and the Bernstein inequality as in
+ (j) 2 
+ 2 
+
+
+
+
+τ
+Λkl
+(j)
+(j)
+(j)
+(j)
+s
+≤
+s
+≤
+(1), we can obtain Pk sl ≤ sk ≤ exp − 2Γ2 ≤ exp − j,max
+,
+and
+P
+k
+l
+k
+2
+
+
+
+
+(j) 2
+2
+τj,max
+Λ
+exp − 2 2 kl (j)
+. Since the RHS of the two inequalities do
+≤ exp − 2(σ2 −cτ
+j,max )
+2(σ Γ −cΓΛkl )
+
+ 2 
+
+
+2
+τj,max
+τj,max
+not depend on k or l, Pk (ŷj 6= k) ≥ 1 − min exp − 2
+, exp − 2(σ2 −cτj,max )
+.
+
+ 2 
+
+
+2
+τ
+τj,max
+With (44), we have P (ŷj 6= yj ) ≥ 1 − min exp − j,max
+, exp − 2(σ2 −cτ
+.
+2
+j,max )
+
+A.2 Proof of Theorem 3
+ 2
+
+
+t2
+Proof Given σ 2 ≥ 0 and c > 0, both functions exp − t2 and exp − 2(σ2 +ct/3)
+are
+ 2
+monotonely increasing on t ∈ [0, ∞). On the other hand, both functions exp − t2 and
+
+
+t2
+exp − 2(σ2 −ct/3)
+are monotonely decreasing on t ∈ (−∞, 0].
+Given t1 ≥ 0, then τj,min ≥ t1 ≥ 0. By Proposition 11,
+(
+!
+!)
+N
+N
+2
+2
+τj,min
+τj,min
+1 X
+1 X
+P (ŷj 6= yj ) ≤
+(L − 1) min exp −
+, exp −
+N
+N
+2
+2 (σ 2 + cτj,min /3)
+j=1
+
+j=1
+
+
+ 2
+
+
+N
+L−1X
+t1
+t21
+≤
+min exp −
+, exp −
+N
+2
+2 (σ 2 + t1 /3)
+j=1
+
+ 2
+
+
+t1
+t21
+= (L − 1) min exp −
+, exp −
+.
+2
+2 (σ 2 + t1 /3)
+Thus, we have proved Theorem 3.(1).
+35
+
+With the same argument, we can straightforwardly prove Theorem 3.(2).
+
+A.3 Proof of Theorem 1
+So far, we have bounded the mean error rate, but we still need more tools for bounding the
+error rate in the practical case with high probability. The following lemma is another form
+of the Bernstein-Chernoff-Hoeffding theorem (Ngo, 2011).
+Lemma 12 (Bernstein-Chernoff-Hoeffding)
+Let ξi ∈ [0,
+P
+P1] be independent random
+variables where Eξi = pi , i ∈ [n]. Let ξ¯ = n1 ni=1 ξi and p̄ = n1 ni=1 pi . Then,
+
+−nD(m/n||p̄) ,
+¯
+(1) for any m such that p̄ ≤ m
+n < 1, P ξ > m/n ≤ e
+m
+(2) for any m such that 0 < n ≤ p̄, P ξ¯ < m/n ≤ e−nD(m/n||p̄) .
+The proof of Theorem 1 is as follows:
+Proof (Theorem 1)
+P
+y ). By Theorem 3.(1), we have
+Proof of Theorem 1 (1) Let µ = N1 N
+j=1 P (ŷj 6=
+qj
+2
+that µ ≤ (L − 1)e−t1 /2 = (L − 1)φ(t1 ). Assume t1 ≥ 2 ln L−1
+ , then we can get (L −
+1)φ(t1 ) ≤ , which gives us 0 ≤ µ ≤ (L − 1)φ(t1 ) ≤ . Then by the Bernstein-Chernoff
+P
+I
+(ŷ
+=
+6
+y
+)
+>
+
+≤ e−N D(||µ) ≤
+Hoeffding Theorem, i.e. Lemma 12, we get P N1 N
+j
+j
+j=1
+e−N D(||(L−1)φ(t1 )) . Therefore, we have
+
+
+N
+X
+1
+P
+I (ŷj 6= yj ) ≤  ≥ 1 − e−N D(||(L−1)φ(t1 )) .
+N
+j=1
+
+q
+1
+Proof of Theorem 1 (2) With the same argument as above, assuming t2 ≤ − 2 ln 1−
+,
+then 1 ≥ µ ≥ 1 − φ(t2 ) ≥ , which gives us
+
+
+N
+X
+1
+P
+I (ŷj 6= yj ) ≥  ≥ 1 − e−N D(||1−φ(t2 )) .
+N
+j=1
+
+Thus, we have proved Theorem 1.
+
+A.4 Proof of Theorem 2
+Before proving Theorem 2, we are going to prove an important lemma for bounding the
+average of a group of independent Bernoulli random variables. The proof of this lemma
+relies on Hoeffding bounds and the Bernstein-Chernoff-Hoeffding theorem (Ngo, 2011).
+Lemma 13 Suppose ∀j ∈ [N ], ξj ∼ Bernoulli(pj ) with pj ∈ (0, 1), and ξj ’s are independent
+P
+¯ 1 PN pj Given any , δ ∈ (0, 1):
+of each other. Let ξ¯ = N1 N
+j=1 ξj and p̄ = Eξ = N
+j=1
+36
+
+0 < p̄ ≤ 1+exp 1 H 1()+ 1 ln 1 , then P(ξ¯ ≤ ) ≥ 1 − δ.
+([ e
+N
+δ ])
+1
+(2) If 1+exp − 1 H ()+ 1 ln 1 ≤ p̄ < 1, then P(ξ¯ ≤ ) < δ.
+( 1− ( e
+N
+δ ))
+
+Proof For simplicity let’s define A = He () + N1 ln 1δ
+The proof of Lemma 13.(1): We will finish the proof in several steps:
+(1) If
+
+Assume 0 < p̄ ≤ 1+exp 1 H 1()+ 1 ln 1 .
+([ e
+N
+δ ])
+Step 1. we want to show p̄ <  :
+
+ 
+A
+exp
+= exp
+
+
+1
+ ln 1 + (1 − ) ln 1−
++ N1 ln 1δ
+
+
+!
+
+
+
+1 1−
+1
+1
+1
+= exp ln +
+ln
++
+ln
+
+
+1 −  N δ
+
+
+1
+> exp ln
+(∵ , δ ∈ (0, 1), N > 0)
+
+1
+=
+
+
+1
+=⇒ 1 + exp A > 1 =⇒ 1+exp
+<
+( A )
+1
+Since 0 < p̄ ≤ 1+exp(A/)
+, then we have p̄ < 
+
+Step 2. We want to show P ξ¯ ≤  ≥ 1 − e−N ·D(||p̄) :
+This is obtained by the Bernstein-Chernoff-Hoeffding Theorem ((Ngo, 2011; McDiarmid,
+1998)), which leads to:
+If 0 < p̄ ≤ , then P(ξ¯ ≤ ) ≤ 1 − e−N D(||p̄)
+If  ≤ p̄ < 1, then P(ξ¯ ≤ ) ≤ e−N D(||p̄)
+
+(54)
+(55)
+
+Since we have shown in step 1 that p̄ < , then we can get the desired result in this step
+easily.
+Step 3. We want to show e−N D(||p̄) ≤ δ :
+Note:
+e−N D(||p̄) ≤ δ
+1
+1
+ln
+⇐⇒ D(||p̄) ≥
+N
+δ
+ 1
+ (1 − )1−
+1 N
+≥
+ln
+⇐⇒ ln 
+p̄ (1 − p̄)1−
+δ
+ 
+
+1
+1
+
+1−
+⇐⇒ p̄ (1 − p̄)
+≤ exp − He () +
+ln
+= e−A
+N
+δ
+37
+
+(56)
+
+From the condition we have,
+
+
+1
+p̄ ≤
+1 + exp(A/)
+Note that p̄ (1 − p̄)1− =
+
+
+
+p̄
+1−p̄
+
+
+
+=⇒
+
+p̄
+(1 − p̄) < 1−p̄
+p̄ (1 − p̄)1− ≤ e−A
+
+
+p̄
+1 − p̄
+
+
+
+≤ e−A
+
+(∵ 1 − p̄ < 1)
+
+=⇒ Inequality (56) holds:
+=⇒ e−N D(||p̄) ≤ δ
+By step 2 and step 3, we can easily get that if p̄ ≤ 1+e1A/ , then P(ξ¯ ≤ ) ≥ 1 − δ, which
+is the results we want.
+The proof of Lemma 13.(2): We will also finish the proof in several steps:
+Assume
+1
+
+
+1
+1 + exp − 1−
+He () + N1 ln 1δ
+
+ ≤ p̄ < 1
+
+Step 1. We want to show
+p̄ > 
+We show it by proving as follows:
+1
+
+ > 
+1
+1 + exp − 1−
+He () + N1 ln 1δ
+
+
+
+1
+1
+1
+1
+He () +
+ln
+<
+1 + exp −
+1−
+N
+δ
+
+
+
+1
+1
+
+He () +
+ln
+> (1 − ) ln
+N
+δ
+1−
+1
+1
+1
+1
+1
+1
+ ln + (1 − ) ln
++
+ln > (1 − ) ln
+− (1 − ) ln
+
+1− N
+δ
+1−
+
+1
+1
+1
+ln +
+ln > 0
+ N
+δ
+
+
+⇐⇒
+⇐⇒
+⇐⇒
+⇐⇒
+
+which is of course true since , δ ∈ (0, 1). Therefore, we have proved p̄ > .
+Step 2. We want to show
+P(ξ¯ ≤ ) ≤ e−N D(||p̄)
+By the Bernstein-Chernoff-Hoeffding Theorem, since  < p̄ = Eξ¯ and ξj ∼ Bernoulli(pj )
+independently, we can directly prove this step.
+Step 3. we want to show
+Note that
+
+e−N D(||p̄) < δ
+
+1
+1
+ln
+N
+δ  
+
+1
+1
+
+1−
+⇐⇒ p̄ (1 − p̄)
+< exp − He () +
+ln
+= e−A
+N
+δ
+
+e−N D(||p̄) < δ ⇐⇒ D(||p̄) >
+
+38
+
+(57)
+
+From the condition we have
+1
+p̄ ≥
+=⇒
+A
+1 + exp − 1−
+
+A
+1 − p̄
+≤ e− 1−
+p̄
+
+
+ 
+
+1 − p̄ 1−
+1
+1
+≤ exp − He () +
+ln
+p̄
+N
+δ
+
+=⇒
+
+(58)
+
+And note that
+
+
+1−
+
+p̄ (1 − p̄)
+
+
+=
+
+1 − p̄
+p̄
+
+1−
+
+
+· p̄ <
+
+1 − p̄
+p̄
+
+1−
+(∵ p̄ < 1)
+
+(59)
+
+By combining inequalities (58) and (59), we can prove inequality (57). Thus we obtained
+1
+e−N D(||p̄) < δ Finally, by step 2 and 3, we get : if p̄ ≥ 1+exp − 1 H
+, then
+1
+1
+(
+(
+e ()+ N ln δ ))
+1−
+
+P ξ¯ ≤  < δ
+
+Now, we are going to prove Theorem 2 with the results we obtained in Lemma 13
+Proof of Theorem 2
+P
+Let ζj = I (ŷj 6= yj ) ∼ Bernoulli(1 − θj ) and let p̄ = Eζ̄ = N1 N
+j=1 Eζj = 1 − θ̄.
+The proof of Theorem
+2.(1):
+p
+Assume that t1 ≥ 2 ln [(L − 1)C(, δ)], where C(, δ) = 1 + exp
+then t1 ≥ 0.
+By Theorem 3, we have
+
+1
+
+
+
+
+
+He () + N1 ln 1δ ,
+
+N
+
+t2
+1 X
+1
+θ̄ = 1 −
+P (ŷj 6= yj ) ≥ 1 − (L − 1)e− 2
+N
+
+(60)
+
+j=1
+
+
+Let A = He () + N1 ln 1δ , then
+p
+p
+t1 ≥ 2 ln [(L − 1)C(, δ)] = 2 ln [(L − 1)(1 + exp(A/))]
+ 2
+t
+1
+
+=⇒
+(L − 1) exp − 1 ≤
+2
+1 + exp A
+ 2
+t
+1
+
+(∵ (60))
+=⇒
+θ̄ ≥ 1 − (L − 1) exp − 1 ≥ 1 −
+2
+1 + exp A
+1
+.
+=⇒
+1 − θ̄ ≤
+1 + exp A
+By inequality (61) and by Lemma 13, we have
+P(ζ̄ ≤ ) ≥ 1 − δ
+which is to say,
+
+P
+
+N
+1 X
+
+N
+
+
+I (ŷj 6= yj ) ≤  ≥ 1 − δ
+
+j=1
+
+39
+
+(61)
+
+Therefore, we have proved (1).
+The proof of Theorem 2.(2):
+
+p
+
+1
+Assume t2 ≤ − 2 ln C(1 − , δ) ≤ 0 , where C(1 − , δ) = 1+exp 1−
+He () + N1 ln 1δ .
+Then by Theorem 3.(2), we have
+ 2
+N
+t
+1 X
+θ̄ =
+(62)
+P(ŷj = yj ) ≤ exp − 2
+N
+2
+j=1
+
+From the conditions in (2)
+s
+
+
+
+
+1
+1
+1
+t2 ≤ − 2 ln 1 + exp
+He () +
+ln
+1−
+N
+δ
+ 2
+1
+t
+
+
+=⇒
+exp − 2 ≤
+A
+2
+1 + exp 1−
+ 2
+t
+1
+1
+
+
+=
+
+=⇒
+1 − θ̄ ≥ 1 − exp − 2 ≥ 1 −
+A
+A
+2
+1 + exp 1−
+1 + exp − 1−
+By Lemma 13.(2), we have P(ζ̄ ≤ ) < δ which implies the desired result.
+
+A.5 Proof of Corollary 8 (Error rate bounds of the oracle MAP rule)
+Proof The posterior distribution is
+(j)
+
+πk ηk
+(j)
+, ∀j ∈ [N ], k ∈ [L],
+ρk = P
+(j)
+L
+l=1 πl ηl
+where
+(j)
+
+ηk =
+
+M Y
+L 
+
+Y
+(i) I(Zij =h)
+pkh
+.
+i=1 h=1
+
+For the oracle MAP classifier,
+(j)
+
+(j)
+
+(j)
+
+ŷjoracle = argmax ρk = argmax πk ηk = argmax log(ηk ) + log πk
+k∈[L]
+
+=
+
+M X
+L 
+X
+
+k∈[L]
+
+k∈[L]
+
+M X
+L
+
+X
+(i)
+(i)
+log pkh I (Zij = h) + log πk =
+µkh I (Zij = h) + ak ,
+
+i=1 h=1
+(i)
+
+i=1 h=1
+
+(i)
+
+where µkh = log pkh and ak = log πk . Therefore the oracle MAP rule is a form of the general
+aggregation rule (37). Thus all the results of error rate bounds in Section 3 holds for the
+oracle MAP rule.
+
+40
+
+A.6 Proof of Corollary 9 (The oracle MAP rule under Homogenous
+Dawid-Skene model)
+Proof The Homogenous Dawid-Skene model is the special case of the General Dawid(i)
+(i)
+i
+Skene model, in which case we have pkk = wi and pkh = 1−w
+L−1 for all k, h ∈ [L], k 6= h. By
+(i)
+
+(i)
+
+i
+Corollary 8, we can replace µkk with log wi , and µkh , k 6= h with log 1−w
+L−1 , and so we have
+
+ŷj
+
+= argmax
+k∈[L]
+
+=
+
+=
+
+=
+
+=
+
+M X
+L
+X
+
+(i)
+
+µkh I (Zij = h) + log
+
+i=1 h=1
+M 
+X
+
+1
+L
+
+
+1 − wi
+argmax
+I (Zij = k) log wi + I (Zij 6= k, 0) log
+L−1
+k∈[L] i=1
+
+M 
+X
+1 − wi
+I (Zij = k) log wi + (I (Zij 6= 0) − I (Zij = k)) log
+argmax
+L−1
+k∈[L] i=1
+"M
+#
+M
+X
+(L − 1)wi X
+1 − wi
++
+argmax
+I (Zij = k) log
+I (Zij 6= 0) log
+1 − wi
+L−1
+k∈[L]
+i=1
+i=1
+
+M 
+X
+(L − 1)wi
+I (Zij = k)
+argmax
+log
+1 − wi
+k∈[L]
+
+= argmax
+k∈[L]
+
+i=1
+M
+X
+
+νi I (Zij = k) ,
+
+i=1
+
+i
+where νi = log (L−1)w
+1−wi . Therefore the oracle MAP rule under the Homogenous Dawid-Skene
+model is a MWV rule. Thus the results from Corollary 5 can be directly applied here. i.e.,
+
+M
+
+t1 =
+
+X
+q
+νi (Lwi − 1),
+(L − 1)||ν||2
+i=1
+
+c=
+
+kνk∞
+||ν||2
+
+and σ 2 = q.
+
+And if t1 ≥ 0, then
+
+ 2
+
+
+N
+1 X
+t1
+t21
+P (ŷj 6= yj ) ≤ (L − 1) · min exp −
+, exp −
+.
+N
+2
+2 (σ 2 + ct1 /3)
+j=1
+
+Now all we need to show is that t1 is always non-negative. We can see that if wi ≥ L1 ,
+i
+then (Lwi − 1) ≥ 0 and νi = (L−1)w
+≥ 0 for all i ∈ [M ], then t1 ≥ 0 in this case.
+1−wi
+i
+wi < L1 , then (Lwi − 1) < 0 and (L−1)w
+1−wi < 0, thus t1 > 0 in this case as well. All in all,
+t1 ≥ 0 is always true for the oracle MAP rule under the Homogenous Dawid-Skene model.
+
+Appendix B. Proof of Theorem 10 : error rate bounds of one-step
+Weighted Majority Voting
+In the proof of this result, we focus on P(Tij = 1) = q = 1, ∀i ∈ [M ], j ∈ [N ], i.e., every
+worker labels any item with probability q. Meanwhile, we assume L = 2, and the label set
+41
+
+.
+[L] = {±1}. It’s not hard to generalize our results to q ∈ (0, 1] and general L case, which is
+more practical, but the bound will be much more complicated. We omit it here for clarity.
+The prediction of the one-step Weighted Majority Voting for the jth item is
+!
+M
+X
+wmv
+ŷj
+= sign
+(63)
+(2ŵi − 1)Zij ,
+i=1
+
+where ŵi is the estimated worker accuracy by taking the output from majority voting as
+“true” labels. That is to say,
+!
+N
+M
+X
+
+1 X
+mv
+mv
+ŵi =
+I Zij = ŷj ,
+where
+ŷj = sign
+(64)
+Zij .
+N
+j=1
+
+i=1
+
+1 PM
+Note that the average accuracy of workers is w̄ = M
+i=1 wi .
+In fact, Theorem 10 is a direct implication by the following result.
+q
+−1) ln 2
+1
+1
+Proposition 14 If w̄ ≥ 2 + M + (M2M
+, then the mean error rate of one-step Weighted
+2
+Majority Voting for the jth item will be:
+
+
+
+8M N 2 σ̃ 4 (1 − η)2
+wmv
+P ŷj
+6= yj ≤ exp − 2
+,
+(65)
+M N + (M + N )2
+
+where σ̃ and η is as defined in Theorem 10 .
+In the next section, we will focus on proving this result first, then Theorem 10 can be
+obtained directly.
+B.1 The preparation for the proofs
+Before we prove Proposition 14, we need to prove several useful results for our final proof
+of Proposition 14.
+With the same notations as we have used for proving Theorem 1, we simplified some
+notations as follows for convenience and clearance:
+.
+.
+(j)
+(j)
+P+ ( · ) = P( · |yj = +1) and P− ( · ) = P( · |yj = −1),
+.
+.
+(j)
+(j)
+E+ [ · ] = E[ · |yj = +1] and E− [ · ] = E[ · |yj = −1],
+
+(66)
+(67)
+
+where “ · ” denotes any event belonging to the σ-algebra generated by Z.
+The following lemma enable us to bound the probability of where the majority vote of
+the jth item agrees with the label given by the ith worker given the true label and Zij .
+Lemma 15 ∀j ∈ [N ] and ∀i ∈ [M ], we have
+(1) if w̄ > 12 , then
+P
+
+ŷjmv = +1|yj = +1, Zij = +1
+
+
+
+i 2
+2M 2 (w̄ − 21 + 1−w
+M )
+≥ 1 − exp −
+M −1
+
+42
+
+!
+,
+
+(68)
+
+
+
+and the same bound holds for P ŷjmv = −1|yj = −1, Zij = −1 .
+1
+(2) if w̄ ≥ 12 + M
+, then
+i 2
+
+2M 2 (w̄ − 21 − w
+M)
+P ŷjmv = −1|yj = +1, Zij = −1 ≤ exp −
+M −1
+
+!
+,
+
+(69)
+
+
+
+and the same bound holds for P ŷjmv = +1|yj = −1, Zij = +1 .
+Proof (1) Notice that for any i ∈ [M ] and j ∈ [N ], given yj , Zij is independent of {Zlj }l6=i ,
+(j)
+
+(j)
+
+E+ Zlj = 2wl − 1 and E− Zlj = −(2wl − 1), then
+X
+l6=i
+
+(j)
+E+ Zlj + 1 =
+
+X
+l6=i
+
+
+
+1 1 − wi
+> 0,
+(2wl − 1) + 1 = 2M w̄ − +
+2
+M
+
+(70)
+
+1
+i
+since w̄ − 12 + 1−w
+M > w̄ − 2 > 0. Therefore, we can apply the Hoeffding inequality to get:
+
+
+
+(j)
+P ŷjmv = +1|yj = +1, Zij = +1 = P+ ŷjmv = +1|Zij = +1
+=
+
+(j)
+P+
+
+M
+X
+
+!
+Zlj > 0 Zij = +1
+
+l=1
+
+
+
+X
+X
+X
+(j)
+(j)
+(j)
+= P+ 
+Zlj −
+E+ Zlj > −(
+E+ Zlj + 1)
+l6=i
+
+l6=i
+
+≥ 1 − exp −
+
+l6=i
+
+!
+P
+(j)
+[ l6=i E+ Zlj + 1]2
+
+(by Hoeffding)
+
+2(M − 1)
+
+i 2
+2M 2 (w̄ − 21 + 1−w
+M )
+= 1 − exp −
+M −1
+
+!
+(by (70))
+
+Note that with the same argument,
+P(ŷjmv = −1|yj = −1, Zij = −1)
+
+=
+
+(j)
+P−
+
+M
+X
+
+!
+Zlj < 0|Zij = −1
+
+l=1
+
+
+
+X
+X
+X
+(j)
+(j)
+(j)
+= P− 
+Zlj −
+E− Zlj < −
+E− Zlj + 1
+l6=i
+
+≥ 1 − exp −
+
+l6=i
+
+l6=i
+
+i 2
+2M 2 (w̄ − 21 + 1−w
+M )
+
+M −1
+
+!
+,
+
+
+P
+(j)
+i
+provided that − l6=i E− Zlj + 1 = 2M w̄ − 12 + 1−w
+> 0, which is satisfied by the
+M
+1
+assumption w̄ > 2 .
+
+P
+(j)
+i
+(2) With the same argument as above, notice that l6=i E+ Zlj −1 = 2M w̄ − 21 − w
+M ≥
+1
+0 because w̄ ≥ 12 + M
+.
+43
+
+By applying the Hoeffding inequality:
+X
+
+(j)
+P ŷjmv = −1|yj = +1, Zij = −1 = P+ (
+Zlj < 0|Zij = −1)
+l6=i
+
+
+
+X
+X
+X
+(j)
+(j)
+(j)
+= P+ 
+Zlj −
+E+ Zlj < −(
+E+ Zlj − 1)
+l6=i
+
+≤ exp −
+
+l6=i
+
+l6=i
+
+!
+P
+(j)
+[ l6=i E+ Zlj − 1]2
+2(M − 1)
+
+i 2
+2M 2 (w̄ − 12 − w
+M)
+= exp −
+M −1
+
+!
+
+ Following the same argument,
+ we can show that the same bound holds for
+mv
+P ŷj = +1|yj = −1, Zij = +1 .
+
+Our next lemma will bound the probability that the label of item j given by worker i
+agrees with Majority Voting.
+1
+, then ∀j ∈ [N ], we have
+Lemma 16 Given w̄ ≥ 12 + M
+(1)
+
+(2)
+
+wi − ξi ≤ P(Zij = ŷjmv | yj ) ≤ wi + ξi ,
+(71)
+
+
+
+
+1−w
+w
+2M 2 (w̄− 21 + M i )2
+2M 2 (w̄− 12 − Mi )2
+(1)
+(2)
+where ξi = wi exp −
+and
+ξ
+=
+(1
+−
+w
+)
+exp
+−
+Furi
+i
+M −1
+M −1
+thermore, we have
+(1)
+
+wi − ξ i
+
+(2)
+
+≤ P(Zij = ŷjmv ) ≤ wi + ξi ,
+
+(72)
+
+Remark: This result implies that under mild conditions, the probability that the label
+of the jth item given by the ith worker matches the majority vote will be close to wi , i.e.,
+the accuracy of this worker. As the number of workers increase, it will be closer and closer.
+Intuitively, this makes sense since if M is large, majority voting will be close to the true
+label if w̄ > 0.5.
+Proof
+(j)
+
+(j)
+
+P(Zij = ŷjmv ) = πP+ (Zij = ŷjmv ) + (1 − π)P− (Zij = ŷjmv ).
+(j)
+
+(j)
+
+(73)
+
+(j)
+
+P+ (Zij = ŷjmv ) = wi P+ (ŷjmv = +1|Zij = +1) + (1 − wi )P+ (ŷjmv = +1|Zij = −1).
+
+
+1−w
+2M 2 (w̄− 12 + M i )2
+(j) mv
+Applying P+ (ŷj = +1|Zij = +1) ≥ 1 − exp −
+from Lemma 15.(1) and
+M −1
+(j)
+
+(1 − π)P− (Zij = ŷjmv ) ≥ 0 we can get
+(j)
+P+ (Zij = ŷjmv ) ≥ wi − wi exp
+
+i 2
+2M 2 (w̄ − 21 + 1−w
+M )
+−
+M −1
+
+44
+
+!
+.
+
+(74)
+
+
+
+w
+2M 2 (w̄− 21 − Mi )2
+(j)
+(j)
+By applying P+ (ŷjmv = +1|Zij = +1) ≤ 1 and P− (Zij = ŷjmv ) ≤ exp −
+M −1
+from Lemma 15.(2), we can get
+!
+2 (w̄ − 1 − wi )2
+2M
+(j)
+2
+M
+.
+(75)
+P+ (Zij = ŷjmv ) ≤ wi + (1 − wi ) exp −
+M −1
+(j)
+
+Similarly, we can obtain the same bounds for P− (Zij = ŷjmv ), i.e.,
+(j)
+P− (Zij = ŷjmv ) ≥ wi − wi exp
+
+i 2
+2M 2 (w̄ − 12 + 1−w
+M )
+−
+M −1
+
+(j)
+P− (Zij = ŷjmv ) ≤ wi + (1 − wi ) exp
+
+(j)
+
+!
+
+i 2
+2M 2 (w̄ − 21 − w
+M)
+−
+M −1
+
+,
+
+(76)
+
+!
+(77)
+
+(j)
+
+Since P+ (Zij = ŷjmv ) and P− (Zij = ŷjmv ) have the same bounds, and
+(j)
+
+(j)
+
+P(Zij = ŷjmv | yj ) = I (yj = 1) P+ (Zij = ŷjmv ) + I (yj = −1) P− (Zij = ŷjmv ),
+then (71) holds. Furthermore, since
+(j)
+
+(j)
+
+P(Zij = ŷjmv ) = πP+ (Zij = ŷjmv ) + (1 − π)P− (Zij = ŷjmv ),
+then (74) to (77) implies (72) .
+
+The next lemma will be crucial for applying concentration measure results to bound
+| {yk }N
+k=1 ).
+For measuring the fluctuation of a function gj : {0, ±1}M ×N → R if we change one entry
+of the data matrix, we define a quantity as follows:
+P(ŷjwmv 6= yj
+
+
+(j) .
+di? j ? = inf d : |gj (Z) − gj (Z 0 )| ≤ d, where Z and Z 0 only differ on (i? , j ? ) .
+
+(78)
+
+The constraints Z and Z 0 only differ on (i? , j ? ), which means that Zi0? j ? is a independent
+0 for (i, j) 6= (i? , j ? ).
+copy of Zi? j ? , and Zij = Zij
+. P
+Lemma 17 Let gj (Z) = M
+i=1 (2ŵi − 1)Zij , ∀j ∈ [N ], where Z is the data matrix and ŵi
+(j)
+is as defined in (64), with di? j ? defined in (78), we have
+(1)if j ? 6= j,
+
+then
+
+di? j ? ≤ 2(MN−1) ;
+
+(2)if j ? = j,
+
+then
+
+di? j ? ≤ 2(MN−1) + 2 .
+
+(j)
+
+(j)
+
+Proof Since Zi0? j ? is an independent copy of Zi? j ? , Zi0? j ? = Zi? j ? or Zi0? j ? = −Zi? j ? . When
+Zi0? j ? = Zi? j ? , Z 0 = Z, then of course |gj (Z) − gj (Z 0 )| = 0, which satisfies the inequality
+trivially.
+Next, we focus on the non-trivial case Zi0? j ? = −Zi? j ? .
+45
+
+0 when (i, j) 6= (i? , j ? ). Let ŷ mv be the majority vote of the jth
+Note that Zij = Zij
+j
+0
+column of Z, and ŷjmv be the majority vote by the jth column of Z 0 .
+P
+PM
+0
+0
+Recall that |gj (Z) − gj (Z 0 )| = | M
+i=1 (2ŵi − 1)Zij −
+i=1 (2ŵi − 1)Zij |.
+0 , ∀i ∈ [M ], so,
+If j ? 6= j, then Zij = Zij
+
+|gj (Z) − gj (Z 0 )| = |
+
+M
+M
+M
+X
+X
+X
+(2ŵi − 2ŵi0 )Zij | ≤ 2
+|(ŵi − ŵi0 )Zij | = 2
+|ŵi − ŵi0 |.
+i=1
+
+i=1
+
+(79)
+
+i=1
+
+0
+?
+0
+If j ? = j, we have Zij ? = Zij
+? for i 6= i , and Zi? j ? = −Zi? j ? , then,
+
+|gj (Z) − gj (Z 0 )| = |
+
+X
+
+2(ŵi − ŵi0 )Zij + 2(p̂i? + p̂0i? − 1)Zi? j ? |
+
+i6=i?
+
+≤ 2
+
+X
+
+|ŵi − ŵi0 | + 2|p̂i? + p̂0i? − 1|
+
+(80)
+
+i6=i?
+
+We can see that the difference gj (Z) − gj (Z 0 ) depends heavily on the two quantities
+|ŵi − ŵi0 | and |p̂i? + p̂0i? − 1|.
+Next we bound |ŵi − ŵi0 |:
+M
+
+|ŵi − ŵi0 | = |
+
+
+
+
+
+
+1
+1 X
+0
+0
+0
+mv 0
+= ŷkmv
+| = |I Zij ? = ŷjmv
+I (Zik = ŷkmv ) − I Zik
+− I Zij
+|,
+?
+? = ŷj ?
+N
+N
+i=1
+
+0
+
+0 and ŷ mv = ŷ mv if k 6= j ? .
+because Zik = Zik
+k
+k
+mv 0
+(a). If ŷjmv
+? = ŷj ? , then by (81)
+
+|ŵi − ŵi0 | =
+
+(
+0
+
+if i 6= i? ,
+if i = i? .
+
+1
+N
+
+In this case,
+M
+X
+
+|ŵi − ŵi0 | =
+
+i=1
+
+1
+,
+N
+
+and
+
+X
+
+|ŵi − ŵi0 | = 0.
+
+(81)
+
+i6=i?
+
+0
+
+mv
+(b). If If ŷjmv
+? 6= ŷj ? , then by (81)
+
+(
+|ŵi − ŵi0 | =
+
+1
+N
+
+0
+
+if i 6= i? ,
+if i = i? .
+
+In this case,
+M
+X
+i=1
+
+|ŵi − ŵi0 | =
+
+M −1
+,
+N
+
+and
+
+X
+i6=i?
+
+46
+
+|ŵi − ŵi0 | =
+
+M −1
+.
+N
+
+(82)
+
+Now, we are going to bound |p̂i? + p̂0i? − 1|:
+N
+
+|p̂i? + p̂0i? − 1| =
+
+
+
+
+1 X
+0
+|
+I (Zi? k = ŷkmv ) + I Zi0? k = ŷkmv − 1 |
+N
+k=1
+
+≤
+
+N
+1 X
+
+N
+
+
+
+0
+|I (Zi? k = ŷkmv ) + I Zi0? k = ŷkmv − 1|.
+
+(83)
+
+k=1
+
+0
+
+mv
+(c). If ŷjmv
+? = ŷj ? , then
+
+|I (Zi? k = ŷkmv ) + I
+
+
+
+0
+Zi0? k = ŷkmv
+
+
+
+(
+1
+− 1| =
+0
+
+if k 6= j ? ,
+if k = j ? .
+
+
+
+(
+1
+− 1| =
+1
+
+if k 6= j ? ,
+if k = j ? .
+
+So in this case, |p̂i? + p̂0i? − 1| = NN−1 .
+mv 0
+(d). If ŷjmv
+? 6= ŷj ? , then
+
+
+mv 0
+
+|I (Zi? k = ŷkmv ) + I Zi0? k = ŷk
+
+So in this case, |p̂i? + p̂0i? − 1| = 1. Putting together all the results above, if Zi? j ? 6= Zi0? j ? ,
+then we have,
+mv 0
+(1’) If ŷjmv
+? = ŷj ? ,
+(
+2
+if j ? 6= j,
+0
+N
+|gj (Z) − gj (Z )| ≤ 2(N
+−1)
+if j ? = j.
+N
+0
+
+mv
+(2’) If ŷjmv
+? 6= ŷj ? ,
+
+(
+0
+
+|gj (Z) − gj (Z )| ≤
+
+2(M −1)
+N
+2(N −1)
++2
+N
+
+if j ? 6= j,
+if j ? = j.
+
+0
+
+The upper bound in the case when ŷjmv 6= ŷjmv is also an upper bound for the case when
+(j)
+
+0
+
+ŷjmv = ŷjmv . By the definition of di? j ? and noting that Z can only take a finite number of
+values, we have
+(
+2(M −1)
+if j ? 6= j,
+(j)
+di? j ? ≤ 2(NN−1)
++ 2 if j ? = j.
+N
+
+(j)
+
+Remark: di? j ? is the smallest upper bound on the difference between gj (Z) and gj (Z 0 ).
+From the proof, we can see that the bound we get is achievable, thus the bounds are tight.
+This result basically says that if we change only one entry of the data matrix, the fluctuation
+of the prediction score function of one-step Weighted Majority Voting, i.e., gj (Z), will be
+large if M increases and will decrease if N increases.
+47
+
+B.2 The proof of Proposition 14 and Theorem 10
+In this section, we will use the lemmas we obtained in the last section to prove Proposition
+14 and then easily derive the bounds on the expected error rate of one-step WMV from it.
+Proof of Proposition 14
+P(ŷjwmv 6= yj ) =
+
+X
+
+
+P ŷjwmv 6= yj | y1 , · · · , yN · P(y1 , · · · , yN )
+
+y1 ,··· ,yN
+
+
+
+If we can get an unified upper bound on P ŷjwmv = yj | y1 , · · · , yN , say B, which is
+wmv 6= y ) since
+independent of {yk }N
+j
+k=1 , then this bound will also be an upper bound of P(ŷj
+
+X
+
+
+P ŷjwmv 6= yj | y1 , · · · , yN · P(y1 , · · · , yN ) ≤
+
+X
+
+B · P(y1 , · · · , yN ) = B.
+
+y1 ,··· ,yN
+
+y1 ,··· ,yN
+
+Note that the Zij ’s are not independent of each other unless conditioned on all the true
+labels of y1 , · · · , yN . For convenience of notation, we define the conditional probability and
+conditional expectation as follows:
+
+
+.
+e(j) ( · ) =
+P
+P
+·
+|
+y
+=
++1,
+{y
+}
+(84)
+j
+k k6=j ,
++
+
+
+.
+e(j) ( · ) =
+P
+P · | yj = −1, {yk }k6=j ,
+(85)
+−
+h
+i
+.
+e (j) [ · ] =
+E
+E · | yj = +1, {yk }k6=j ,
+(86)
++
+h
+i
+.
+e (j) [ · ] =
+E
+E · | yj = −1, {yk }k6=j ,
+(87)
+−
+where “·” denotes any event with respect to the σ-algebra generated by Z and {yj }N
+j=1 .
+Note that in these conditional notations, all true labels of item k, k 6= j remain unknown
+e (j) [yk ] = yk for k 6= j.
+but are conditioned on, e.g., E
++
+Notice that
+
+
+
+P ŷjwmv = yj | y1 , · · · , yN = I (yj = +1) · P ŷjwmv = −1 | yj = +1, {yk }k6=j
+
+
++I (yj = −1) · P ŷjwmv = +1 | yj = −1, {yk }k6=j
+
+e(j) ŷ wmv = −1
+= I (yj = +1) · P
+j
++
+
+e(j) ŷ wmv = +1
++I (yj = −1) · P
+j
+−
+e(j) (gj (Z) < 0)
+= I (yj = +1) · P
++
+e(j) (gj (Z) > 0) ,
++I (yj = −1) · P
+−
+PM
+
+(64).
+i=1 (2ŵi − 1)Zij and ŵi is defined as 
+
+(j)
+e
+e(j) (gj (Z) < 0) and
+We want to provide the upper bound on both P
+ŷjwmv = −1 = P
++
++
+
+
+(j)
+(j)
+e
+e (gj (Z) > 0).
+P
+ŷjwmv = +1 = P
+−
++
+where gj (Z) =
+
+48
+
+We complete our proof in several steps.
+e(j) (gj (Z) < 0)
+Step 1. Providing an upper bound on P
++
+N
+Once we condition on {yk }k=1 , all the entries in Z will be independent of each other, and
+e(j) (gj (Z) < 0).
+then we can apply McDiarmid Inequality (McDiarmid, 1998) to the probability P
++
+From Lemma 17, we get that if Z and Z 0 only differ on entry (i? , j ? ), Zi0? j ? is an
+independent copy of Zi? j ? , and so
+(j)
+
+|gj (Z) − gj (Z 0 )| ≤ di? j ? .
+Combining this with the results from Lemma 17 we have
+
+
+
+
+M X
+N 
+
+X
+2(M − 1) 2
+2(M − 1) 2
+(j) 2
+≤ M (N − 1)
+di? j ?
++M 2+
+N
+N
+i? =1 j ? =1
+
+
+
+
+2M 2
+2M 2
++M 2+
+≤ MN
+N
+N
+
+4M  2
+M N + (M + N )2
+≤
+2
+N
+Applying the McDiamid Inequality, we get
+
+
+e(j) (gj (Z) < 0) = P
+e(j) gj (Z) − E
+e (j) [gj (Z)] < −E
+e (j) [gj (Z)]
+P
++
++
++
++
+
+
+2 
+e (j) [gj (Z)]
+2 E
++
+
+
+≤ exp − P
+PN  (j) 2 
+M
+i? =1
+j ? =1 di? j ?
+
+
+2 
+(j)
+2
+e
+N E+ [gj (Z)]
+
+
+≤ exp −
+,
+2
+2
+2M [M N + (M + N ) ]
+
+(88)
+
+(89)
+
+(j)
+
+e gj (Z) ≤ 0.
+provided E
++
+(j)
+
+(j)
+
+e [gj (Z)], then by replacing E
+e [gj (Z)] with
+Now, if we can provide a lower bound of E
++
++
+(j)
+e (gj (Z) < 0) from above.
+that lower bound in the last inequality, we can further bound P
++
+(j)
+e
+Next, we aim at deriving a good lower bound of E+ [gj (Z)].
+We can expand gj (Z) so that
+e (j) [gj (Z)] = E
+e (j)
+E
++
++
+
+"M
+X
+
+#
+(2ŵi − 1)Zij
+
+= 2
+
+i=1
+
+= 2
+
+M
+X
+i=1
+M
+X
+i=1
+
+e (j) [ŵi Zij ] −
+E
++
+e (j) [ŵi Zij ] −
+E
++
+
+M
+X
+i=1
+M
+X
+
+(2wi − 1),
+
+i=1
+
+h
+i
+e (j) Zij = E Zij | yj = +1, {yk }
+since E
++
+k6=j = E[Zij |yj = +1] = 2wi − 1.
+49
+
+e (j) Zij
+E
++
+
+Note that for any i ∈ [M ] and j ∈ [N ], given yj , {Zij }M
+i=1 will be independent of {Zlk }k6=j
+and {yk }k6=j . We will use this property for dropping all the irrelevant conditioned yk ’s.
+#
+N
+N
+1 X e (j)
+1 X
+mv
+Zij ·
+E+ [Zij I (Zik = ŷkmv )]
+I (Zik = ŷk ) =
+N
+N
+k=1
+k=1
+
+
+X
+
+
+1 
+e (j) [Zij I (Zik = ŷ mv )] + E
+e (j) Zij I Zij = ŷ mv 
+E
+(90)
+j
+k
++
++
+N
+"
+
+e (j) [ŵi Zij ]
+E
++
+
+=
+
+=
+
+e (j)
+E
++
+
+k6=j
+
+When k 6= j, Zik and ŷkmv are independent of Zij given yj .
+e (j) [Zij I (Zik = ŷ mv )] = E
+e (j) Zij · E
+e (j) I (Zik = ŷ mv )
+E
+k
+k
++
++
++
+= (2wi − 1)P(Zik = ŷkmv | yk )
+"
+
+!#
+i 2
+2M 2 (w̄ − 21 + 1−w
+M )
+≥ I (2wi − 1 ≥ 0) · (2wi − 1)wi 1 − exp −
+M −1
+!#
+"
+i 2
+2M 2 (w̄ − 21 − w
+1 − wi
+M)
+exp −
++I (2wi − 1 < 0) · (2wi − 1)wi 1 +
+(By Lemma 16)
+wi
+M −1
+!#
+" 
+
+
+
+i 2
+2M 2 (w̄ − 21 + 1−w
+1
+1
+M )
+− I wi ≥
+exp −
+≥ (2wi − 1)wi I wi ≥
+2
+2
+M −1
+!#
+" 
+
+
+
+
+i 2
+2M 2 (w̄ − 21 − w
+)
+1
+1 − wi
+1
+M
++ I wi <
+exp −
++(2wi − 1)wi I wi <
+2
+2
+wi
+M −1
+"
+!#
+i 2
+)
+2M 2 (w̄ − 21 − w
+1
+1 − 2wi
+1
+M
+= (2wi − 1)wi 1 +
+)
+exp −
+(Because w̄ > +
+wi
+M −1
+2 M
+
+
+1 − 2wi
+= (2wi − 1)wi 1 +
+ηi ,
+2wi
+
+
+w
+2M 2 (w̄− 12 − Mi )2
+.
+where ηi = 2 exp −
+M −1
+Furthermore,
+h
+
+
+
+i
+e (j) Zij I Zij = ŷ mv = E(j) Zij E
+e (j) I Zij = ŷ mv | Zij
+E
+j
+j
++
++
++
+= wi P(ŷjmv = +1 | yj = +1, Zij = +1) − (1 − wi )P(ŷjmv = −1 | yj = +1, Zij = −1)
+!#
+!
+"
+i 2
+i 2
+2M 2 (w̄ − 12 − w
+2M 2 (w̄ − 12 + 1−w
+M )
+M)
+− (1 − wi ) exp −
+(By Lemma 15)
+= wi 1 − exp −
+M −1
+M −1
+"
+!#
+!
+2 (w̄ − 1 − wi )2
+i 2
+2M 2 (w̄ − 12 − w
+)
+2M
+1
+1
+M
+2
+M
+≥ wi 1 − exp −
+− (1 − wi ) exp −
+(As w̄ > +
+)
+M −1
+M −1
+2 M
+!
+i 2
+2M 2 (w̄ − 12 − w
+)
+M
+= wi − exp −
+M −1
+≥ wi − ηi /2
+50
+
+Combining the two bounds above, we obtained
+
+
+X
+
+
+1
+e (j) [ŵi Zij ] =
+e (j) [Zij I (Zik = ŷ mv )] + E
+e (j) Zij I Zij = ŷ mv 
+
+E
+E
+j
+k
++
++
++
+N
+k6=j
+
+
+1 − 2wi
+ηi
+1
+(N − 1)(2wi − 1)wi (1 +
+ηi ) + wi −
+≥
+N
+2wi
+2
+
+
+
+1
+=
+(N − 1)(2wi − 1)2 + 1 (1 − ηi ) + N (2wi − 1)
+2N
+
+1 
+N (2wi − 1)2 (1 − ηi ) + N (2wi − 1)
+(Because 1 ≥ (2wi − 1)2 )
+≥
+2N
+1
+1
+=
+(2wi − 1)2 (1 − ηi ) + (2wi − 1)
+2
+2
+
+1
+1 2
+2
+2M (w̄− 2 − M )
+, so η ≤ ηi ∀i ∈ [M ]
+Let η = 2 exp −
+M −1
+e (j) gj (Z) = 2
+E
++
+
+M
+X
+
+e (j) [ŵi Zij ] −
+E
++
+
+i=1
+
+M
+X
+
+(2ŵi − 1)
+
+i=1
+
+M
+M
+M
+X
+X
+X
+≥
+(2wi − 1)2 (1 − ηi ) +
+(2ŵi − 1) −
+(2ŵi − 1)
+i=1
+
+i=1
+
+≥ (1 − η)
+
+i=1
+
+M
+X
+
+(2wi − 1)2
+
+i=1
+
+= 4M σ̃ 2 (1 − η),
+where σ̃ =
+
+q
+
+(91)
+
+1 PM
+2
+i=1 (2wi − 1) .
+M
+
+q
+−1) ln 2
+1
+e (j) gj (Z) ≥ 0.
+Since w̄ ≥ 21 + M
++ (M2M
+, so η ≤ 1, which implies E
+2
++
+Then by (89) and (91) we have
+
+
+2 
+2 E
+e (j) [gj (Z)]
+N
++
+
+e(j) gj (Z) < 0 ≤ exp 
+P
+−
+
++
+2
+2
+2M [M N + (M + N ) ]
+
+
+8M N 2 σ̃ 4 (1 − η)2
+≤ exp − 2
+.
+M N + (M + N )2
+
+(92)
+
+Step 2. With the same argument and following the same logic, we can obtain the
+e(j) gj (Z) > 0.
+same upper bound for P
+−
+Step 3. Combining the results we obtained from Step 1 and Step 2.
+Since
+
+e(j) (gj (Z) < 0) + I (yj = −1) · P
+e(j) (gj (Z) > 0)
+P ŷjwmv = yj | y1 , · · · , yN = I (yj = +1) · P
++
+−
+e(j) (gj (Z) < 0) and P
+e(j) (gj (Z) > 0) have the same upper bound, we have that
+and both P
++
+−
+
+
+
+8M N 2 σ̃ 4 (1 − η)2
+wmv
+.
+P ŷj
+= yj | y1 , · · · , yN ≤ exp − 2
+M N + (M + N )2
+51
+
+The upper bound above does not depend on the value of {yk }N
+k=1 . By what we have discussed
+in the very beginning of the proof,
+
+
+8M N 2 σ̃ 4 (1 − η)2
+mv
+P(ŷj 6= yj ) ≤ exp − 2
+.
+M N + (M + N )2
+
+Now, we can directly prove Theorem 10 as follows:
+Proof (Proof of Theorem 10 )
+Since the upper bound of P(ŷjmv 6= yj ) doesn’t depend on j, it can directly imply that
+
+
+N
+8M N 2 σ̃ 4 (1 − η)2
+1 X
+,
+P(ŷjmv 6= yj ) ≤ exp − 2
+N
+M N + (M + N )2
+j=1
+
+which is the desired result in Theorem 10 .
+
+52
+
+

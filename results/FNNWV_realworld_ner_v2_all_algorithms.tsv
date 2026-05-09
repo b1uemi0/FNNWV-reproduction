@@ -1,0 +1,2 @@
+dataset	examples	classes	workers	MV	IWMV	PLAT	MNLDP	LAWMV	FNNWV
+NER	5985	2	47	72.59	77.17	58.04	76.88	78.27	79.68
