@@ -375,43 +375,7 @@ results/FNNWV_alpha_experiment_analysis.md
 4. α 分析虽然已经做了 seed-fixed 10-run 和 Wilcoxon 检验，但结论仍偏探索性质。
 5. 当前尚未对 `page-blocks0` 上 Q10 大幅提升、`haberman` 上 Q10 明显下降的原因做深入定位。
 
-## 10. 建议提交内容
-
-建议提交时保留以下内容：
-
-```text
-REPRODUCTION_REPORT.md
-README_REPRODUCTION.md
-REPRODUCE_PROGRESS.md
-code/
-scripts/
-datasets/
-vendor/
-references/
-results/
-```
-
-建议不提交以下内容：
-
-```text
-build/
-versions/
-tmp 或 smoke test 结果
-早期中间结果
-原始探索过程中的临时脚本
-```
-
-如果提交大小受限，可以优先保留：
-
-- `code/`
-- `scripts/`
-- `results/`
-- `REPRODUCTION_REPORT.md`
-- `README_REPRODUCTION.md`
-
-并在文档中说明 CEKA 1.0.1、数据集和论文资料需要另行放置到对应目录。
-
-## 11. 总结
+## 10. 总结
 
 总体而言，本项目完成了 FNNWV 论文主要实验的可运行复现，并补齐了若干原仓库缺失的对比方法实现。模拟数据集和真实 NER 数据集上的核心结果大体接近论文报告值，其中 FNNWV、LAWMV、PLAT 等结果较为接近。MNLDP 由于求解器缺失和实现差异，需要谨慎解释。
 
